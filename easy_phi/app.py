@@ -7,8 +7,11 @@ This file contains Web Application
 import tornado.ioloop
 import tornado.web
 from datetime import date
-from . import VERSION, SERVER_PORT
 
+VERSION = "0.1"
+LICENSE = "GPL v3.0"
+PROJECT = "easy_phi"
+SERVER_PORT = "easy_phi"
 
 class VersionHandler(tornado.web.RequestHandler):
     """
