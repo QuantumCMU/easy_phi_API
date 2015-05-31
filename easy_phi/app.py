@@ -1,93 +1,98 @@
+"""
+This file contains Web Application
+"""
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import tornado.ioloop
 import tornado.web
 from datetime import date
+import easy_phi_API.easy_phi
 
-from tornado.options import define, options
-
-#TCP port for Http requests
-PORT = 8888
-
-"""
-VersionHandler
-
-Return Rack software verion and last release date
-"""
 class VersionHandler(tornado.web.RequestHandler):
+    """
+    Return Rack software verion and last release date
+    """
     def get(self):
-		
-        response = { 'version': '0.0.1',
-                     'last_build':  date.today().isoformat() }
+        response = {'version': easy_phi_API.easy_phi.VERSION,
+                     'last_build':  date.today().isoformat()}
         self.write(response)
 
-"""
-ModulesListHandler
-
-Return a list of modules currently connected to the Rack
-with their information 
-
-Module information includes:
-	- Module ID
-	- Module Description
-	- Module Software version
-	- Current status: locked/unlocked
-	- List of supported SCPI commands
-"""
 class ModulesListHandler(tornado.web.RequestHandler):
+    """
+    ModulesListHandler
+
+    Return a list of modules currently connected to the Rack
+    with their information
+
+    Module information includes:
+    - Module ID
+    - Module Description
+    - Module Software version
+    - Current status: locked/unlocked
+    - List of supported SCPI commands
+"""
     def get(self):
-        response = { 'module3' : 'module3_info',
-					 'module2' : 'module2_info',
-					 'module1' : 'module1_info'}
+        response = {'module3' : 'module3_info',
+                     'module2' : 'module2_info',
+                     'module1' : 'module1_info'}
         self.write(response)
 
-"""
-SelectModuleHandler
-
-Select the module, identified by ID passed as a URL parameter. 
-"""
 class SelectModuleHandler(tornado.web.RequestHandler):
+    "Select the module, identified by ID passed as a URL parameter."
     def post(self):
         #Parse request URL and derive moduleID [TBD]
-		
+
         #Check the status of selected module (must be unlocked) [TBD]
-		
-        #Lock the module [TBD]
-		
-        #Redirect user to a constructed Module specific web-page [TBD]
-        
-        response = { 'SelectModuleHandler' }
-        self.write(response)
-"""
-SCPICommandHandler
 
-Transfer SCPI command to a module, specified by moduleID
-"""
+        #Lock the module [TBD]
+
+        #Redirect user to a constructed Module specific web-page [TBD]
+
+        response = {'handler' : 'SelectModuleHandler'}
+        self.write(response)
+
+    def get(self):
+		#Debug purpose only
+
+        response = {'handler' : 'SelectModuleHandler'}
+        self.write(response)
+
 class SCPICommandHandler(tornado.web.RequestHandler):
+    "Transfer SCPI command to a module, specified by moduleID"
     def post(self):
         #Parse request URL and derive moduleID [TBD]
-		
-        #Transfer SCPI command to the module [TBD] 
-		
-        #Update web-page accordingle [TBD]    
-        response = { 'SCPICommandHandler' }
-        self.write(response)
-"""
-AdminConsoleHandler
 
-Redirect user to Admin Console web-page
-"""
-class AdminConsoleHandler(tornado.web.RequestHandler):
-    def post(self):
-		
-        #Redirect user to Admin Console web-page [TBD]
-        
-        response = { 'AdminConsoleHandler' }
+        #Transfer SCPI command to the module [TBD]
+
+        #Update web-page accordingle [TBD]
+        response = {'handler' : 'SCPICommandHandler'}
         self.write(response)
-  
+
+    def get(self):
+		#Debug purpose only
+
+        response = {'handler' : 'SCPICommandHandler'}
+        self.write(response)
+
+class AdminConsoleHandler(tornado.web.RequestHandler):
+    """Redirect user to Admin Console web-page"""
+    def post(self):
+
+        #Redirect user to Admin Console web-page [TBD]
+
+        response = {'handler' : 'AdminConsoleHandler'}
+        self.write(response)
+
+    def get(self):
+		#Debug purpose only
+
+        response = {'handler' : 'AdminConsoleHandler'}
+        self.write(response)
+
 #URL schemas to RequestHandler classes mapping
-application = tornado.web.Application([
+APPLICATION = tornado.web.Application([
+	(r"/", VersionHandler), #Default page
     (r"/version", VersionHandler),
     (r"/modules", ModulesListHandler),
     (r"/pick_module", SelectModuleHandler),
@@ -96,8 +101,8 @@ application = tornado.web.Application([
 ])
 
 if __name__ == '__main__':
-	#listed for HTTP requests on 8888 TCP port
-    application.listen(PORT)
+    #listen for HTTP requests on TCP port
+    APPLICATION.listen(easy_phi_API.easy_phi.SERVER_PORT)
     tornado.ioloop.IOLoop.current().start()
 
 
