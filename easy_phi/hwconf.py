@@ -7,24 +7,40 @@
 
 import pyudev
 import hwal
+from tornado.options import options
 
 callbacks = [
     # hardware configuration change listener will call these methods
     # it is necessary to send updates to websockets
 ]
 
-# TODO: replace magic number with command line option
 # device #0 represents broadcast
-modules = [None for i in range(5)]
+modules = [None for i in range(options.slots + 1)]
 modules[0] = hwal.BroadcastModule(modules)
 
 _context = pyudev.Context()
 
 
 def get_rack_slot(device):
+    global modules  # Ugly, I know. Let me know if there is a better way
+
+    # first, check if device is already represented in modules
+    for i, module in enumerate(modules):
+        if module.device == device:
+            return i
+
+    # if it is not in the list, match it with USB ports of the rack
     # TODO: get usb ports list from config file (command line option)
-    # set port depending on
-    return 1
+    slot = 1
+
+    # if device is neither in modules list nor port is associated with rack slot, assign to first free slot
+    if not 1 <= slot <= options.slots:
+        for i in range(options.slots + 1, len(modules)):
+            if modules[i] is None:
+                return i
+        slot = len(modules)
+        modules += [None]
+    return slot
 
 
 def hwconf_update():
@@ -35,7 +51,6 @@ def hwconf_update():
     for device in _context.list_devices():
         for module_class in hwal.__all__:
             if module_class.is_instance(device):
-                # TODO: handle rack slots outside of modules[] size (e.g. connected directly to the board)
                 modules[get_rack_slot(device)] = module_class(device)
                 break
 
@@ -69,6 +84,7 @@ observer = pyudev.MonitorObserver(monitor, hwconf_listener)
 # update hardware configuration on start
 observer.start()
 hwconf_update()
+
 
 def stop():
     """tear down udev listener for clean exit"""
