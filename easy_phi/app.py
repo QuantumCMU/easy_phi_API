@@ -7,7 +7,6 @@ import json
 
 import tornado.ioloop
 import tornado.web
-import tornado.options
 from datetime import date
 from tornado.options import options, parse_config_file, define
 
