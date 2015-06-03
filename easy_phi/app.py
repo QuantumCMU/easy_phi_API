@@ -7,13 +7,15 @@ import json
 
 import tornado.ioloop
 import tornado.web
+import tornado.options
 from datetime import date
+from tornado.options import options, parse_config_file, define
 
-VERSION = "0.1"
-LICENSE = "GPL v3.0"
-PROJECT = "easy_phi"
-SERVER_PORT = 8888
-
+#deifne used tornado.options
+define("VERSION", type=str)
+define("LICENSE", type=str)
+define("PROJECT", type=str)
+define("SERVER_PORT", type=int)
 
 def toXML(res):
     #TODO convert String to XML representation
@@ -38,7 +40,7 @@ class VersionHandler(tornado.web.RequestHandler):
     """
     @format
     def get(self):
-        response = {'version': VERSION,
+        response = {'version': options.VERSION,
                     'last_build': date.today().isoformat()}
         return response
 
@@ -133,6 +135,7 @@ APPLICATION = tornado.web.Application([
 ])
 
 if __name__ == '__main__':
+    tornado.options.parse_config_file("options.conf")
     # listen for HTTP requests on TCP port
-    APPLICATION.listen(SERVER_PORT)
+    APPLICATION.listen(options.SERVER_PORT)
     tornado.ioloop.IOLoop.current().start()
