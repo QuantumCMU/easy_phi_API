@@ -3,6 +3,7 @@
 
 import serial
 import threading
+from tornado import gen
 
 
 def lock(func):
@@ -155,6 +156,32 @@ class USBTMCModule(AbstractMeasurementModule):
     def scpi(self, command):
         # TODO: write actual implementation
         return "OK"
+
+
+class BroadcastModule(AbstractMeasurementModule):
+    """ Fake module to broadcast messages to all modules connected to platform. """
+
+    name = "Broadcast dummy module"
+
+    def __init__(self, modules):
+        self.modules = modules
+        super(BroadcastModule, self).__init__(None)
+
+    @lock
+    @gen.coroutine
+    def scpi(self, command):
+        """Send SCPI command to all connected modules
+        :param command: string with SCPI command. It is not validated to be valid SCPI command,
+                it is your responsibility
+        :return always returns "OK".
+        """
+        for module in self.modules:
+            if isinstance(module, AbstractMeasurementModule):
+                yield module.scpi(command)
+        raise gen.Return("OK")
+
+    def get_configuration(self):
+        return []
 
 # Please note that it is not conventional __all__ defined in __init__.py, it contains list of classes instead of strings
 # It is used by hwconf.py to call static methods to see if a device is supported or not

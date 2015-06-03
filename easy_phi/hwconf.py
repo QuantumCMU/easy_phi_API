@@ -16,6 +16,7 @@ callbacks = [
 # TODO: replace magic number with command line option
 # device #0 represents broadcast
 modules = [None for i in range(5)]
+modules[0] = hwal.BroadcastModule(modules)
 
 _context = pyudev.Context()
 
