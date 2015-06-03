@@ -33,7 +33,7 @@ class AbstractMeasurementModule(object):
 
     def __init__(self, device):
         """ Initialize module object with pyudev.Device object """
-        self.name = self.scpi("*IDN?")
+        self.device = device
 
     @staticmethod
     def is_instance(device):
@@ -106,7 +106,7 @@ class CDCModule(AbstractMeasurementModule):
         # TODO: replace magic numbers with configuration variables
         self.serial = serial.Serial(device['DEVNAME'], 3000000, timeout=2)
         # TODO: handle legacy modules with SYSTem:NAME?
-        self.name = self.scpi("*IDN?").rstrip() # remove newline
+        self.name = str(self.scpi("*IDN?")).rstrip()  # remove newline
         super(CDCModule, self).__init__(device)
 
     @staticmethod
@@ -118,19 +118,21 @@ class CDCModule(AbstractMeasurementModule):
         return device.get('ID_USB_DRIVER') == 'cdc_acm' and 'DEVNAME' in device
 
     @lock
+    @gen.coroutine
     def scpi(self, command):
         """Send SCPI command to the device
-        :param command: string with SCPI command. It is not validated to be valid SCPI command, it is your responsibility
+        :param command: string with SCPI command. It is not validated to be valid SCPI command,
+                it is your responsibility
         :return string with command response.
         """
         # sanitize input:
         command = command.strip() + "\n"
         self.serial.write(command)
-        output = self.serial.readline()
+        output = yield self.serial.readline()
         if output.startswith('**'):
             # TODO: handle errorrs
             pass
-        return output
+        raise gen.Return(output)
 
 
 class USBTMCModule(AbstractMeasurementModule):
@@ -153,6 +155,7 @@ class USBTMCModule(AbstractMeasurementModule):
         return device.get('ID_USB_DRIVER') == 'usbtmc'
 
     @lock
+    @gen.coroutine
     def scpi(self, command):
         # TODO: write actual implementation
         return "OK"
