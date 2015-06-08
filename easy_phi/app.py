@@ -4,7 +4,7 @@
 This file contains Web Application
 """
 import json
-
+import dicttoxml
 import tornado.ioloop
 import tornado.web
 from datetime import date
@@ -15,24 +15,26 @@ PROJECT = "easy_phi"
 SERVER_PORT = 8888
 
 
-def toXML(res):
-    #TODO convert String to XML representation
-    return res
-
-
 def format(func):
+    """
+    This Decorator formats the output of function func
+    into one of the following formats: json/xml/plain text based
+    on the value of format HTTP request argument
+    :param func: function to be called by the Decorator
+    :return: wrapper function
+    """
     def wrapper(self):
-        ct = self.request.headers.get('accept')
+        format = self.get_argument('format', 'json')
         res = func(self)
-        if "application/json" in ct:
+        if format == 'json':
             self.write(json.dumps(res))
-        elif "application/xml" in ct:
-            self.write(toXML(res))
+        elif format == 'xml':
+            self.write(dicttoxml.dicttoxml(res))
         else:
             self.write(res)
     return wrapper
 
-class VersionHandler(tornado.web.RequestHandler):
+class PlatformInfoHandler(tornado.web.RequestHandler):
     """
     Return Rack software verion and last release date
     """
@@ -124,11 +126,11 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
 
 # URL schemas to RequestHandler classes mapping
 APPLICATION = tornado.web.Application([
-    (r"/", VersionHandler),  # Default page
-    (r"/version", VersionHandler),
-    (r"/modules", ModulesListHandler),
-    (r"/pick_module", SelectModuleHandler),
-    (r"/send_command", SCPICommandHandler),
+    (r"/", PlatformInfoHandler),  # Default page
+    (r"/api/info", PlatformInfoHandler),
+    (r"/api/modules", ModulesListHandler),
+    (r"/api/module", SelectModuleHandler),
+    (r"/api/scpi", SCPICommandHandler),
     (r"/admin", AdminConsoleHandler)
 ])
 
