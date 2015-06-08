@@ -62,7 +62,7 @@ Sample output of SCPI commands from logic gate module:
 > SYST:ERR:NEXT?
     0, "No error"\r\n
 
-Output of $ udevadm info /dev/ttyACM0
+Output of $ udevadm info:
 udevadm info --name=/dev/ttyACM1 --query=all
 
     P: /devices/pci0000:00/0000:00:14.0/usb3/3-1/3-1:1.0/tty/ttyACM1

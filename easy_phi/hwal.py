@@ -14,11 +14,11 @@ def lock(func):
     """
     def wrapper(self, *args, **kwargs):
         if not hasattr(self, 'lock'):
-            self.lock = threading.Lock()
+            self._lock = threading.Lock()
             self.is_locked = lambda x: x.lock.locked()
-        self.lock.acquire()
+        self._lock.acquire()
         retval = func(self, *args, **kwargs)
-        self.lock.release()
+        self._lock.release()
         return retval
     return wrapper
 
@@ -186,6 +186,8 @@ class BroadcastModule(AbstractMeasurementModule):
     def get_configuration(self):
         return []
 
-# Please note that it is not conventional __all__ defined in __init__.py, it contains list of classes instead of strings
-# It is used by hwconf.py to call static methods to see if a device is supported or not
-__all__ = [CDCModule, USBTMCModule]
+# Please note that it is not conventional __all__ defined in __init__.py,
+# it contains list of classes instead of strings.
+# hwconf.py iterates these modules and calls static method is_instance()
+# to see if device is supported by the system
+__all__ = module_classes = [CDCModule, USBTMCModule]
