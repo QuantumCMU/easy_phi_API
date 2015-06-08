@@ -24,8 +24,7 @@ define("conf_path", default="/etc/easy_phi.conf")
 define("static_path", default=os.path.join(os.path.dirname(__file__), '..', 'static'))
 define("server_port", default=8000)
 
-# TODO: replace by falce before release to production
-define("debug", default=True)
+define("debug", default=False)
 
 settings = {
     'autoreload': options.debug,

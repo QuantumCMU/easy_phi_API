@@ -83,7 +83,6 @@ def hwconf_listener(action, device):
         return
 
     rack_slot = get_rack_slot(device)
-    print rack_slot
     added = action not in ('remove', 'offline')
     modules[rack_slot] = module_class(device) if added else None
 
