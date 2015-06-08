@@ -3,16 +3,32 @@
 """
 This file contains Web Application
 """
+import os
 import json
 import dicttoxml
 import tornado.ioloop
+import tornado.httpserver
 import tornado.web
 from datetime import date
+from tornado.options import options, parse_config_file, define
 
+import hwconf
+
+# deifne used tornado.options
 VERSION = "0.1"
 LICENSE = "GPL v3.0"
 PROJECT = "easy_phi"
-SERVER_PORT = 8888
+
+# configuration defaults
+define("conf_path", default="/etc/easy_phi.conf")
+define("static_path", default=os.path.join(os.path.dirname(__file__), '..', 'static'))
+define("server_port", default=8000)
+
+define("debug", default=False)
+
+settings = {
+    'autoreload': options.debug,
+}
 
 
 def format(func):
@@ -62,6 +78,7 @@ class ModulesListHandler(tornado.web.RequestHandler):
         response = {'Slot1': 'Module1',
                     'Slot2': 'Module2'}
         return response
+
 
 class SelectModuleHandler(tornado.web.RequestHandler):
     """Select the module, identified by ID passed as a URL parameter."""
@@ -125,16 +142,26 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
         return response
 
 # URL schemas to RequestHandler classes mapping
-APPLICATION = tornado.web.Application([
-    (r"/", PlatformInfoHandler),  # Default page
+application = tornado.web.Application([
+    (r"/", tornado.web.RedirectHandler,
+        {"url": '/static/index.html'}),
     (r"/api/info", PlatformInfoHandler),
     (r"/api/modules", ModulesListHandler),
     (r"/api/module", SelectModuleHandler),
     (r"/api/scpi", SCPICommandHandler),
-    (r"/admin", AdminConsoleHandler)
-])
+    (r"/admin", AdminConsoleHandler),
+    (r"/static/(.*)", tornado.web.StaticFileHandler,
+        {"path": options.static_path}),
+], **settings)
 
 if __name__ == '__main__':
-    # listen for HTTP requests on TCP port
-    APPLICATION.listen(SERVER_PORT)
+    parse_config_file(options.conf_path)
+    hwconf.start()
+
+    # we need HTTP server to serve SSL requests.
+    ssl_ctx = None
+    http_server = tornado.httpserver.HTTPServer(application, ssl_options=ssl_ctx)
+    http_server.listen(options.server_port)
     tornado.ioloop.IOLoop.current().start()
+
+    # TODO: add TCP socket handler to listen for HiSlip requests from VISA

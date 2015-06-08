@@ -24,7 +24,10 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
     ),
-
+    data_files=[
+        ('/etc', ['scripts/easy_phi.conf']),
+        ('/etc/udev/rules.d', ['scripts/99-easy_phi-modules.rules']),
+    ],
     requires = [
         'tornado',
     ],
