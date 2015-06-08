@@ -4,3 +4,4 @@
 tornado
 pyserial
 pyudev
+dicttoxml

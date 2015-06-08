@@ -31,7 +31,7 @@ settings = {
 }
 
 
-def format(func):
+def multiformat(func):
     """
     This Decorator formats the output of function func
     into one of the following formats: json/xml/plain text based
@@ -39,22 +39,37 @@ def format(func):
     :param func: function to be called by the Decorator
     :return: wrapper function
     """
+    if options.debug:  # pretty print support
+        from xml.dom.minidom import parseString
+
     def wrapper(self):
-        format = self.get_argument('format', 'json')
+        fmt = self.get_argument('format', 'json')
         res = func(self)
-        if format == 'json':
-            self.write(json.dumps(res))
-        elif format == 'xml':
-            self.write(dicttoxml.dicttoxml(res))
+        if fmt == 'json':
+            callback = self.get_argument('callback', '')
+            self.set_header('content-type', 'application/json')
+            response_text = json.dumps(res)
+            if callback:  # JSONP support, for cross-domain static JS API
+                response_text = ''.join((callback, '(', response_text, ')'))
+            self.write(response_text)
+        elif fmt == 'xml':
+            self.set_header('content-type', 'application/xml')
+            xml = dicttoxml.dicttoxml(res)
+            if options.debug:
+                # prettify XML for better debugging
+                xml = parseString(xml).toprettyxml()
+            self.write(xml)
         else:
+            self.set_header('content-type', 'text/plain')
             self.write(res)
     return wrapper
+
 
 class PlatformInfoHandler(tornado.web.RequestHandler):
     """
     Return Rack software verion and last release date
     """
-    @format
+    @multiformat
     def get(self):
         response = {'version': VERSION,
                     'last_build': date.today().isoformat()}
@@ -145,10 +160,10 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
 application = tornado.web.Application([
     (r"/", tornado.web.RedirectHandler,
         {"url": '/static/index.html'}),
-    (r"/api/info", PlatformInfoHandler),
-    (r"/api/modules", ModulesListHandler),
-    (r"/api/module", SelectModuleHandler),
-    (r"/api/scpi", SCPICommandHandler),
+    (r"/api/v1/info", PlatformInfoHandler),
+    (r"/api/v1/modules", ModulesListHandler),
+    (r"/api/v1/module", SelectModuleHandler),
+    (r"/api/v1/scpi", SCPICommandHandler),
     (r"/admin", AdminConsoleHandler),
     (r"/static/(.*)", tornado.web.StaticFileHandler,
         {"path": options.static_path}),
