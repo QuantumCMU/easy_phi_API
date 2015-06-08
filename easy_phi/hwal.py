@@ -118,7 +118,6 @@ class CDCModule(AbstractMeasurementModule):
         return device.get('ID_USB_DRIVER') == 'cdc_acm' and 'DEVNAME' in device
 
     @lock
-    @gen.coroutine
     def scpi(self, command):
         """Send SCPI command to the device
         :param command: string with SCPI command. It is not validated to be valid SCPI command,
@@ -128,11 +127,11 @@ class CDCModule(AbstractMeasurementModule):
         # sanitize input:
         command = command.strip() + "\n"
         self.serial.write(command)
-        output = yield self.serial.readline()
+        output = self.serial.readline()
         if output.startswith('**'):
             # TODO: handle errorrs
             pass
-        raise gen.Return(output)
+        return output
 
 
 class USBTMCModule(AbstractMeasurementModule):

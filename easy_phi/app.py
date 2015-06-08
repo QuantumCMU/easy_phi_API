@@ -3,21 +3,36 @@
 """
 This file contains Web Application
 """
+import os
 import json
 
 import tornado.ioloop
+import tornado.httpserver
 import tornado.web
 from datetime import date
 from tornado.options import options, parse_config_file, define
 
-#deifne used tornado.options
-define("VERSION", type=str)
-define("LICENSE", type=str)
-define("PROJECT", type=str)
-define("SERVER_PORT", type=int)
+import hwconf
+
+# deifne used tornado.options
+VERSION = "0.1"
+LICENSE = "GPL v3.0"
+PROJECT = "easy_phi"
+
+# configuration defaults
+define("conf_path", default="/etc/easy_phi.conf")
+define("static_path", default=os.path.join(os.path.dirname(__file__), '..', 'static'))
+define("server_port", default=8000)
+
+# TODO: replace by falce before release to production
+define("debug", default=True)
+
+settings = {
+    'autoreload': options.debug,
+}
 
 def toXML(res):
-    #TODO convert String to XML representation
+    # TODO convert String to XML representation
     return res
 
 
@@ -33,13 +48,14 @@ def format(func):
             self.write(res)
     return wrapper
 
+
 class VersionHandler(tornado.web.RequestHandler):
     """
     Return Rack software verion and last release date
     """
     @format
     def get(self):
-        response = {'version': options.VERSION,
+        response = {'version': VERSION,
                     'last_build': date.today().isoformat()}
         return response
 
@@ -61,6 +77,7 @@ class ModulesListHandler(tornado.web.RequestHandler):
         response = {'Slot1': 'Module1',
                     'Slot2': 'Module2'}
         return response
+
 
 class SelectModuleHandler(tornado.web.RequestHandler):
     """Select the module, identified by ID passed as a URL parameter."""
@@ -124,17 +141,26 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
         return response
 
 # URL schemas to RequestHandler classes mapping
-APPLICATION = tornado.web.Application([
-    (r"/", VersionHandler),  # Default page
+application = tornado.web.Application([
+    (r"/", tornado.web.RedirectHandler,
+        {"url": '/static/index.html'}),
     (r"/version", VersionHandler),
     (r"/modules", ModulesListHandler),
     (r"/pick_module", SelectModuleHandler),
     (r"/send_command", SCPICommandHandler),
-    (r"/admin", AdminConsoleHandler)
-])
+    (r"/admin", AdminConsoleHandler),
+    (r"/static/(.*)", tornado.web.StaticFileHandler,
+        {"path": options.static_path}),
+], **settings)
 
 if __name__ == '__main__':
-    tornado.options.parse_config_file("options.conf")
-    # listen for HTTP requests on TCP port
-    APPLICATION.listen(options.SERVER_PORT)
+    parse_config_file(options.conf_path)
+    hwconf.start()
+
+    # we need HTTP server to serve SSL requests.
+    ssl_ctx = None
+    http_server = tornado.httpserver.HTTPServer(application, ssl_options=ssl_ctx)
+    http_server.listen(options.server_port)
     tornado.ioloop.IOLoop.current().start()
+
+    # TODO: add TCP socket handler to listen for HiSlip requests from VISA
