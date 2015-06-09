@@ -18,6 +18,7 @@ import hwconf
 VERSION = "0.1"
 LICENSE = "GPL v3.0"
 PROJECT = "easy_phi"
+API_VERSION = "v1"
 
 # configuration defaults
 define("conf_path", default="/etc/easy_phi.conf")
@@ -160,10 +161,10 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
 application = tornado.web.Application([
     (r"/", tornado.web.RedirectHandler,
         {"url": '/static/index.html'}),
-    (r"/api/v1/info", PlatformInfoHandler),
-    (r"/api/v1/modules", ModulesListHandler),
-    (r"/api/v1/module", SelectModuleHandler),
-    (r"/api/v1/scpi", SCPICommandHandler),
+    (r"/api/" + API_VERSION + "/info", PlatformInfoHandler),
+    (r"/api/" + API_VERSION + "/modules", ModulesListHandler),
+    (r"/api/" + API_VERSION + "/module", SelectModuleHandler),
+    (r"/api/" + API_VERSION + "/scpi", SCPICommandHandler),
     (r"/admin", AdminConsoleHandler),
     (r"/static/(.*)", tornado.web.StaticFileHandler,
         {"path": options.static_path}),
