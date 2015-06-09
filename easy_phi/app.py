@@ -24,6 +24,7 @@ define("server_port", default=8000)
 define("default_format", default='json')
 define("hw_version", default='N/A')
 define("vendor", type=str)
+define("welcome_message", default="")
 
 define("debug", default=True)
 
@@ -89,6 +90,7 @@ class PlatformInfoHandler(APIHandler):
             'slots': len(hwconf.modules),
             'supported_api_versions': [1],
             'modules': [module and module.name for module in hwconf.modules],
+            'welcome_message': options.welcome_message
         }
 
 
