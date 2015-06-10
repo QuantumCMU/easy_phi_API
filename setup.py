@@ -2,6 +2,10 @@ from distutils.core import setup
 
 from easy_phi import VERSION, LICENSE, PROJECT
 
+rq_fh = open('requirements.txt', 'r')
+reqs = [ line.split("#", 1)[0].strip() for line in rq_fh.read().split("\n")
+            if line.split("#", 1)[0].strip()]
+
 #options reference: https://docs.python.org/2/distutils/
 setup(
     name = PROJECT,
@@ -24,8 +28,9 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
     ),
-
-    requires = [
-        'tornado',
+    data_files=[
+        ('/etc', ['scripts/easy_phi.conf']),
+        ('/etc/udev/rules.d', ['scripts/99-easy_phi-modules.rules']),
     ],
+    requires = reqs,
 )

@@ -3,136 +3,197 @@
 """
 This file contains Web Application
 """
-import json
+import os
 
 import tornado.ioloop
+import tornado.httpserver
 import tornado.web
-from datetime import date
+from tornado.options import options, parse_config_file, parse_command_line, define
+
+import hwconf
+import auth
+from decorators import multiformat, api_auth
 
 VERSION = "0.1"
 LICENSE = "GPL v3.0"
 PROJECT = "easy_phi"
-SERVER_PORT = 8888
+
+# configuration defaults
+define("conf_path", default="/etc/easy_phi.conf")
+define("static_path", default=os.path.join(os.path.dirname(__file__), '..', 'static'))
+define("server_port", default=8000)
+define("hw_version", default='N/A')
+define("vendor", type=str)
+define("welcome_message", default="")
+
+define("debug", default=False)
+
+settings = {
+    'debug': options.debug,
+}
 
 
-def toXML(res):
-    #TODO convert String to XML representation
-    return res
+class APIHandlerMetaclass(type):
+    """ Metaclass to apply multiformat decorator to all REST methods """
+    def __new__(cls, name, bases, dct):
+        # Now, get/put/post/whatever method can return object instead of self.write-ing
+        handler = super(APIHandlerMetaclass, cls).__new__(cls, name, bases, dct)
+
+        for method in ('get', 'post', 'put', 'head', 'delete'):
+            setattr(handler, method, multiformat(getattr(handler, method)))
+
+        return handler
 
 
-def format(func):
-    def wrapper(self):
-        ct = self.request.headers.get('accept')
-        res = func(self)
-        if "application/json" in ct:
-            self.write(json.dumps(res))
-        elif "application/xml" in ct:
-            self.write(toXML(res))
+class APIHandler(tornado.web.RequestHandler):
+    """ Tornado handlers subclass to format response into xml/json/plain """
+    __metaclass__ = APIHandlerMetaclass
+
+
+class ModuleHandler(APIHandler):
+    """ APIHandler subclass to handle slot number validation
+    It is intended for handlers working with modules """
+    allow_broadcast = False
+    slot = None
+    module = None  # updated by self.prepare() if slot number is correct
+    api_token = None  # updated by decorator @api_auth
+
+    def prepare(self):
+        err = ''
+        slot = self.get_argument('slot', '')
+        if slot == '':
+            err = 'Missing slot number. Add ?slot=N to URL'
         else:
-            self.write(res)
-    return wrapper
+            try:
+                self.slot = int(slot)
+            except ValueError:
+                err = 'Slot number must be an integer'
+            else:
+                max_slot = len(hwconf.modules) - 1
+                min_slot = 0 if self.allow_broadcast else 1
+                if not min_slot <= self.slot <= max_slot:  # invalid slot number
+                    err = 'Invalid slot number. Number in range ' + \
+                          '{0}..{1} expected'.format(min_slot, max_slot)
+                elif hwconf.modules[self.slot] is None:
+                    err = 'Selected slot is empty'
 
-class VersionHandler(tornado.web.RequestHandler):
-    """
-    Return Rack software verion and last release date
-    """
-    @format
+        if err:
+            self.set_status(400)
+            self.finish({'error': err})
+
+        self.module = hwconf.modules[self.slot]
+
+
+class PlatformInfoHandler(APIHandler):
+    """ Return basic info about the system """
     def get(self):
-        response = {'version': VERSION,
-                    'last_build': date.today().isoformat()}
-        return response
+        return {
+            'sw_version': VERSION,
+            'hw_version': options.hw_version,
+            'vendor': options.vendor,
+            'slots': len(hwconf.modules),
+            'supported_api_versions': [1],
+            'modules': [module and module.name for module in hwconf.modules],
+            'welcome_message': options.welcome_message
+        }
 
 
-class ModulesListHandler(tornado.web.RequestHandler):
+class SelectModuleHandler(ModuleHandler):
+    """Select the module, identified by ID passed as a URL parameter.
+
+    When user selects module in web interface, all other users should be
+    be able to see this module is used by someone else.
+
     """
-    ModulesListHandler
-    Return a list of modules currently connected to the Rack
-    with their information
-    Module information includes:
-    - Module ID
-    - Module Description
-    - Module Software version
-    - Current status: locked/unlocked
-    - List of supported SCPI commands
-"""
-    @format
-    def get(self):
-        response = {'Slot1': 'Module1',
-                    'Slot2': 'Module2'}
-        return response
+    allow_broadcast = False
 
-class SelectModuleHandler(tornado.web.RequestHandler):
-    """Select the module, identified by ID passed as a URL parameter."""
-    @format
+    @api_auth
     def post(self):
-        # Parse request URL and derive moduleID [TBD]
+        """ Set user lock on module to indicate it is used by someone """
+        used_by = getattr(self.module, 'used_by', None)
+        if used_by is not None:
+            self.set_status(400)
+            return {'error': 'Module is used by {0}. If you '.format(used_by) +
+                             'need this module, you might force unlock it '
+                             'by issuing DELETE request first.'}
+        setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
+        return "OK"
 
-        # Check the status of selected module (must be unlocked) [TBD]
+    @api_auth
+    def delete(self):
+        """ Force to remove any user lock from the module """
+        used_by = getattr(self.module, 'used_by', None)
+        if used_by is None:
+            self.set_status(400)
+            return {'error': 'Module is not used by anyone at the moment'}
+        setattr(self.module, 'used_by', None)
+        return "OK"
 
-        # Lock the module [TBD]
-
-        # Redirect user to a constructed Module specific web-page [TBD]
-
-        response = {'handler': 'SelectModuleHandler'}
-        return response
-
-    @format
     def get(self):
-        # Debug purpose only
+        """ Return user lock status of the module
+        :param: id: integer, slot number 1...N
+        :return: user name of the person using this module, None otherwise
+        """
+        return getattr(self.module, 'used_by', None)
 
-        response = {'handler': 'SelectModuleHandler'}
-        return response
 
+class SCPICommandHandler(ModuleHandler):
+    """API functions related to a module in the specified rack slot"""
+    allow_broadcast = True
 
-class SCPICommandHandler(tornado.web.RequestHandler):
-    """Transfer SCPI command to a module, specified by moduleID"""
-
-    @format
     def post(self):
-        # Parse request URL and derive moduleID [TBD]
+        """Transfer SCPI command to a module and return the response"""
+        # Check user lock status
+        used_by = getattr(self.module, 'used_by', None)
+        # auth.user_by_token(None) returns None, in case selection isn't used
+        if used_by != auth.user_by_token(self.api_token):
+            self.set_status(409)  # Conflict
+            return {'error': 'Module is used by {0}. If you '.format(used_by) +
+                             'need this module, you might force unlock it first.'}
 
-        # Transfer SCPI command to the module [TBD]
+        scpi_command = self.request.body
+        if not scpi_command:
+            self.set_status(400)
+            print "=====>", scpi_command
+            return {'error': 'SCPI command expected in POST body'}
 
-        # Update web-page accordingle [TBD]
-        response = {'handler': 'SCPICommandHandler'}
-        return response
+        return self.module.scpi(scpi_command)
 
-    @format
     def get(self):
-        # Debug purpose only
-
-        response = {'handler': 'SCPICommandHandler'}
-        return response
+        """Get module configuration (i.e. list of available SCPI commands)"""
+        return self.module.get_configuration()
 
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
-    """Redirect user to Admin Console web-page"""
+    """Placeholder for Admin Console web-page"""
 
-    @format
-    def post(self):
-        # Redirect user to Admin Console web-page [TBD]
-
-        response = {'handler': 'AdminConsoleHandler'}
-        return response
-
-    @format
     def get(self):
-        # Debug purpose only
-
-        response = {'handler': 'AdminConsoleHandler'}
-        return response
+        self.write("Coming soon..")
 
 # URL schemas to RequestHandler classes mapping
-APPLICATION = tornado.web.Application([
-    (r"/", VersionHandler),  # Default page
-    (r"/version", VersionHandler),
-    (r"/modules", ModulesListHandler),
-    (r"/pick_module", SelectModuleHandler),
-    (r"/send_command", SCPICommandHandler),
-    (r"/admin", AdminConsoleHandler)
-])
+application = tornado.web.Application([
+    (r"/", tornado.web.RedirectHandler,
+        {"url": '/static/index.html'}),
+    (r"/api/v1/", PlatformInfoHandler),
+    (r"/api/v1/module/select", SelectModuleHandler),
+    (r"/api/v1/module", SCPICommandHandler),
+    (r"/admin", AdminConsoleHandler),
+    (r"/static/(.*)", tornado.web.StaticFileHandler,
+        {"path": options.static_path}),
+], **settings)
 
 if __name__ == '__main__':
-    # listen for HTTP requests on TCP port
-    APPLICATION.listen(SERVER_PORT)
+    parse_config_file(options.conf_path, final=False)
+    parse_command_line()  # command-line args override conf file options
+
+    # start hw configuration monitoring. It requires configuration of hw ports
+    # so it shall be done after parsing conf file
+    hwconf.start()
+
+    # we need HTTP server to serve SSL requests.
+    ssl_ctx = None
+    http_server = tornado.httpserver.HTTPServer(application, ssl_options=ssl_ctx)
+    http_server.listen(options.server_port)
     tornado.ioloop.IOLoop.current().start()
+
+    # TODO: add TCP socket handler to listen for HiSlip requests from VISA
