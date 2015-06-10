@@ -9,16 +9,15 @@ import pyudev
 import hwal
 from tornado.options import define, options
 
-define('slots', type=int, default=0)
-ports = []
+define('ports', type=list, default=[])
 
 callbacks = [
     # hardware configuration change listener will call these methods
     # it is necessary to send updates to websockets
 ]
 
+modules = [None]
 # device #0 represents broadcast
-modules = [None for i in range(options.slots + 1)]
 modules[0] = hwal.BroadcastModule(modules)
 
 _context = pyudev.Context()
@@ -30,9 +29,9 @@ def get_rack_slot(device):
     free slot from dynamically created before. By default system is configured
     for 0 slots so everything is created dynamically.
     :param device: pyudev.Device object.
-    :return integer slot number, 1...~20.
+    :return integer slot number, 1...~20. Slot 0 is reserved for broadcasting
     """
-    global modules, ports  # Ugly, I know. Let me know if there is a better way
+    global modules  # Ugly, I know. Let me know if there is a better way
 
     # first, check if device is already represented in modules
     # pyudev.Device does not guarantee uniqueness, so we have to ensure if device isn't
@@ -42,15 +41,14 @@ def get_rack_slot(device):
             return i
 
     # if it is not in the list, match it with USB ports of the rack
-    # TODO: get usb ports list from config file (command line option)
-    if device['ID_PATH'] in ports:
-        return ports.index(device['ID_PATH'])
+    if device['ID_PATH'] in options.ports:
+        return options.ports.index(device['ID_PATH']) + 1
 
     # if device is neither in modules list nor port is associated with rack slot,
     # assign to first free slot. It might happen in standalone mode, or if a
     # supported device connected directly to a board inside rack, i.e. it is not
     # not a typical scenario for commercially distributed systems.
-    for i in range(options.slots + 1, len(modules)):
+    for i in range(len(options.ports) + 1, len(modules)):
         if modules[i] is None:
             return i
     slot = len(modules)
@@ -97,9 +95,14 @@ def hwconf_listener(action, device):
 monitor = pyudev.Monitor.from_netlink(_context)
 observer = pyudev.MonitorObserver(monitor, hwconf_listener)
 
+
 # update hardware configuration on start
-observer.start()
-hwconf_update()
+def start():
+    global modules
+    for port in options.ports:
+        modules += [None]
+    observer.start()
+    hwconf_update()
 
 
 def stop():
