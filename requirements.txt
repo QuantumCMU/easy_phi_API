@@ -2,3 +2,6 @@
 # sudo pip install -r requirements/production.txt
 
 tornado
+pyserial
+pyudev
+dicttoxml
