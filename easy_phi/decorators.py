@@ -4,9 +4,12 @@
 import json
 import dicttoxml
 
-from tornado.options import options
+from tornado.options import options, define
 
 import hwconf
+import auth
+
+define("default_format", default='json')
 
 
 def multiformat(func):
@@ -17,7 +20,7 @@ def multiformat(func):
         from xml.dom.minidom import parseString
 
     def wrapper(self):
-        fmt = self.get_argument('format', 'json')
+        fmt = self.get_argument('format', options.default_format)
         res = func(self)
         if fmt == 'json':
             callback = self.get_argument('callback', '')
@@ -47,27 +50,18 @@ def multiformat(func):
     return wrapper
 
 
-# Deprecated; replace with subclassing from APIHandler in main app
-def api_handler(handler):
-    """ Class wrapper fro Tornado handlers to support multiple output formats
-    Warning: this handler shall be applied last, i.e. it must be the topmost
-    if several decorators applied.
+def api_auth(func):
+    def wrapper(self):
+        # TODO: use HTTP auth basic instead of get parameters
+        api_token = self.get_argument("key", '')
+        if not auth.validate_api_token(api_token):
+            self.set_status(401)
+            return {'error': "Invalid api key. Please check if you're"
+                             " authenticated in the system"}
+        self.api_token = api_token
+        return func(self)
 
-    This Decorator formats the output of function func
-    into one of the following formats: json/xml/plain text based
-    on the value of format HTTP request argument
-
-    Usage example:
-    @api_handler
-    class PlatformInfoHandler(tornado.web.RequestHandler):
-        ...
-
-    """
-
-    for method in ('get', 'post', 'put', 'head', 'delete'):
-        setattr(handler, method, multiformat(getattr(handler, method)))
-
-    return handler
+    return wrapper
 
 
 def require_slot(allow_bcast=True):
