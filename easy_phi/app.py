@@ -154,7 +154,6 @@ class SCPICommandHandler(ModuleHandler):
         scpi_command = self.request.body
         if not scpi_command:
             self.set_status(400)
-            print "=====>", scpi_command
             return {'error': 'SCPI command expected in POST body'}
 
         return self.module.scpi(scpi_command)
