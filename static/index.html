@@ -1,31 +1,24 @@
 <title>Easy Phi - test measurement equipment platform</title>
+<link rel="stylesheet" href="css/style.css" type="text/css" media="screen, projection">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
 <script>
 $(document).ready(function (){
+    $.get("/api/v1/")
     $.get("/api/v1/", function(data){
         data['modules'].forEach(function(module, index) {
-            $("#slot_selector").append("<option value='"+ index + "'>" + module + "</option>")
+            $("#modules_list").append("<option value='"+ index + "'>" + module + "</option>")
         });
-        $("#module_form").submit(function(){
-            $.post("/api/v1/module?slot=" + $("#slot_selector").val(),
-                    $("#command_input").val(),
-                    function(data){
-                        $("#response_text").text(data);
-                    });
-            return false;
-        })
     })
 })
 </script>
 
+<form id="platform_info" class="boxed">
+  
+</div>
+
 <form id="module_form">
-    <label for="slot_selector">Rack slot</label>
-        <select id="slot_selector" name="slot"></select>
+    <label for="modules_list">Modules:</label>
+        <ul id="modules_list" name="slot"></ul>
         <br />
-    <label for="command_input">Command to send</label>
-        <input type="text" id="command_input" name="command" />
-        <br />
-    <input type="submit" value="Submit" />
 </form>
 
-<pre id="response_text"></pre>
