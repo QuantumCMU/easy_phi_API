@@ -1,24 +1,97 @@
 <title>Easy Phi - test measurement equipment platform</title>
 <link rel="stylesheet" href="css/style.css" type="text/css" media="screen, projection">
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+<script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
 <script>
 $(document).ready(function (){
-    $.get("/api/v1/")
-    $.get("/api/v1/", function(data){
-        data['modules'].forEach(function(module, index) {
-            $("#modules_list").append("<option value='"+ index + "'>" + module + "</option>")
-        });
+    //get Platform info
+    $.get("/api/v1/info", function(data){
+	document.title = data['welcome_message'];
+	document.getElementById("txt_vendor").innerHTML = "Vendor: " + data['vendor'];
+	document.getElementById("txt_sw_version").innerHTML = "Software version: " + data['sw_version'];
+	document.getElementById("txt_hw_version").innerHTML = "Hardware version: " + data['hw_version'];
+	document.getElementById("txt_api_versions").innerHTML = "Supported API versions: " + data['supported_api_versions'];
+    })
+
+    //get list of modules and their statuses
+    $.get("/api/v1/modules_list", function(data){
+	var num_of_modules = 0;
+	var used_modules = 0;
+	var newDiv;
+
+        for (var i=0; i < data.length; i++) {
+	    var module = data[i];
+	    if (module[0] != null) {
+		num_of_modules = num_of_modules + 1;
+		
+		if (module[1] != null) {
+		    used_modules = used_modules + 1;
+		    newDiv = "<h3>" + i + ". " + module[0] + " Used by: " + module[1] + "</h3>";	
+		} else {
+		    newDiv = "<h3>" + i + ". " + module[0] + "</h3>"; 
+		}
+
+		newDiv = newDiv + "<div class=\"control_panel\">Module control panel to be displayed here</div>";
+	    } else {
+		newDiv = "<h3>" + i + ". " + "Empty slot</h3><div class=\"control_panel\"></div>"
+	}
+    	$('.modules_list').append(newDiv)
+        $('.modules_list').accordion("refresh");
+	}
+
+	document.getElementById("txt_number_of_slots").innerHTML = "Number of slots: " + data.length;
+	document.getElementById("txt_number_of_modules").innerHTML = "Number of modules: " + num_of_modules;
+	document.getElementById("txt_modules_in_use").innerHTML = "Modules in use: " + used_modules;
     })
 })
 </script>
+<script>
+  $(function() {
+    $('#accordion').accordion({
+    collapsible:true,
 
-<form id="platform_info" class="boxed">
-  
+    beforeActivate: function(event, ui) {
+         // The accordion believes a panel is being opened
+        if (ui.newHeader[0]) {
+            var currHeader  = ui.newHeader;
+            var currContent = currHeader.next('.ui-accordion-content');
+         // The accordion believes a panel is being closed
+        } else {
+            var currHeader  = ui.oldHeader;
+            var currContent = currHeader.next('.ui-accordion-content');
+        }
+         // Since we've changed the default behavior, this detects the actual status
+        var isPanelSelected = currHeader.attr('aria-selected') == 'true';
+
+         // Toggle the panel's header
+        currHeader.toggleClass('ui-corner-all',isPanelSelected).toggleClass('accordion-header-active ui-state-active ui-corner-top',!isPanelSelected).attr('aria-selected',((!isPanelSelected).toString()));
+
+        // Toggle the panel's icon
+        currHeader.children('.ui-icon').toggleClass('ui-icon-triangle-1-e',isPanelSelected).toggleClass('ui-icon-triangle-1-s',!isPanelSelected);
+
+         // Toggle the panel's content
+        currContent.toggleClass('accordion-content-active',!isPanelSelected)    
+        if (isPanelSelected) { currContent.slideUp(); }  else { currContent.slideDown(); }
+
+        return false; // Cancel the default action
+    }
+    });
+  });
+</script>
+
+<body>
+<div id="platform_info">
+    <p id="txt_wlcm_msg"></p>
+    <p id="txt_vendor"></p>
+    <p id="txt_sw_version"></p>
+    <p id="txt_hw_version"></p>
+    <p id="txt_api_versions"></p>
+    <p id="txt_number_of_slots"></p>
+    <p id="txt_number_of_modules"></p>
+    <p id="txt_modules_in_use"></p>
 </div>
 
-<form id="module_form">
-    <label for="modules_list">Modules:</label>
-        <ul id="modules_list" name="slot"></ul>
-        <br />
-</form>
+<div id="accordion" class="modules_list">
+</div>
+</body>
 

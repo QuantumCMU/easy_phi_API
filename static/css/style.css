@@ -1,3 +1,46 @@
-.boxed {
-  border: 1px solid black ;
+<style>
+#header {
+    background-color:black;
+    color:white;
+    text-align:center;
+    padding:5px;
 }
+#platform_info {
+    line-height:30px;
+    width:20%;
+    float:left;
+    padding:10px;
+    border: 1px solid black 
+}
+#accordion {
+    width:50%;
+    float:left;
+    margin-left:10%;   
+    border: 1px solid black
+}
+#footer {
+    background-color:black;
+    color:white;
+    clear:both;
+    text-align:center;
+    padding:5px; 
+}
+h3 {
+    background: #3300CC;
+    color: white;
+    border: 1px solid white;
+    padding: 5px;  
+    vertical-align: top;
+    margin-top: 0px; 
+    margin-bottom: 0px;
+}
+div.control_panel {
+    background: #D0D0D0;
+    border: 1px solid black;
+    padding: 5px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+</style>
+
+
