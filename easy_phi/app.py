@@ -97,6 +97,12 @@ class PlatformInfoHandler(APIHandler):
             'welcome_message': options.welcome_message
         }
 
+class ModulesListHandler(APIHandler):
+    """ Return list of modules with their metadata and currnent status (locked/unlocked)"""
+    def get(self):
+        return [[None, None] if module is None
+                else [module.name, getattr(module, 'used_by', None)]
+                for module in hwconf.modules]
 
 class SelectModuleHandler(ModuleHandler):
     """Select the module, identified by ID passed as a URL parameter.
@@ -173,7 +179,8 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
 application = tornado.web.Application([
     (r"/", tornado.web.RedirectHandler,
         {"url": '/static/index.html'}),
-    (r"/api/v1/", PlatformInfoHandler),
+    (r"/api/v1/info", PlatformInfoHandler),
+    (r"/api/v1/modules_list", ModulesListHandler),
     (r"/api/v1/module/select", SelectModuleHandler),
     (r"/api/v1/module", SCPICommandHandler),
     (r"/admin", AdminConsoleHandler),
