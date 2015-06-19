@@ -17,33 +17,56 @@ $(document).ready(function (){
     $.get("/api/v1/modules_list", function(data){
 	var num_of_modules = 0;
 	var used_modules = 0;
-	var newDiv;
 
         for (var i=0; i < data.length; i++) {
 	    var module = data[i];
 	    if (module[0] != null) {
 		num_of_modules = num_of_modules + 1;
-		
 		if (module[1] != null) {
 		    used_modules = used_modules + 1;
-		    newDiv = "<h3>" + i + ". " + module[0] + " Used by: " + module[1] + "</h3>";	
-		} else {
-		    newDiv = "<h3>" + i + ". " + module[0] + "</h3>"; 
 		}
 
-		newDiv = newDiv + "<div class=\"control_panel\">Module control panel to be displayed here</div>";
-	    } else {
-		newDiv = "<h3>" + i + ". " + "Empty slot</h3><div class=\"control_panel\"></div>"
-	}
-    	$('.modules_list').append(newDiv)
-        $('.modules_list').accordion("refresh");
-	}
+	    } 
+	    var header = generateHeader(i, module[0], module[1]);
+            var control_panel = generateControlPanel(i, module[0], module[1]);
+    	    $('.modules_list').append(header + control_panel)
+            $('.modules_list').accordion("refresh");
+        }
 
 	document.getElementById("txt_number_of_slots").innerHTML = "Number of slots: " + data.length;
 	document.getElementById("txt_number_of_modules").innerHTML = "Number of modules: " + num_of_modules;
 	document.getElementById("txt_modules_in_use").innerHTML = "Modules in use: " + used_modules;
-    })
+    })  
 })
+function generateHeader(id, name, used_by) {
+    var result = "";
+    //display slot index
+    result += "<h3 id=module_header" + id + ">" + id + ". ";
+    if (name != null) {
+        //display module name
+        result += name;
+
+	//if it's not a broadcast module
+    	if (id != 0) {
+
+	    
+
+	    if (used_by !=null) {
+	        //add id of user the module is locked by
+	        result = result + " Used by: " + used_by;	
+	    }
+        }
+    } else {
+	result += "Empty slot";
+    }
+    
+    result = result + "</h3>";
+    return result;
+}
+
+function generateControlPanel(id, name, used_by) {
+    return "<div class=\"control_panel\">Module control panel to be displayed here</div>";
+}
 </script>
 <script>
   $(function() {
@@ -93,5 +116,6 @@ $(document).ready(function (){
 
 <div id="accordion" class="modules_list">
 </div>
+
 </body>
 
