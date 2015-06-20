@@ -1,46 +1,26 @@
 # -*- coding: utf-8 -*-
-import tornado.httpserver
-import tornado.httpclient
-import tornado.ioloop
-import tornado.web
-import unittest
 import json
-from easy_phi import app as handlers
 
-class API_test(unittest.TestCase):
+import tornado.testing
 
-    def test_t(self):
-        self.assertTrue(True)
+from easy_phi import app
 
-class TestTornadoWeb(unittest.TestCase):
-    http_server = None
-    response = None
 
-    def setUp(self):
-        application = tornado.web.Application([
-                (r'/api/v1/', handlers.PlatformInfoHandler),
-                ])
+class TestTornadoWeb(tornado.testing.AsyncHTTPTestCase):
 
-        http_server = tornado.httpserver.HTTPServer(application)
-        http_server.listen(8000)
+    def get_app(self):
+        return app.application
 
-    def handle_request(self, response):
-        self.response = response
-        tornado.ioloop.IOLoop.instance().stop()
+    def testVersionHandler(self):
+        self.http_client.fetch(self.get_url('/api/v1/?format=json'), self.stop)
+        response = self.wait()
 
-    def test_AtLeastOneModule_PlatformInfoHandler(self):
-        http_client = tornado.httpclient.AsyncHTTPClient()
-        http_client.fetch('http://localhost:8000/api/v1/',
-self.handle_request)
+        self.failIf(response.error)
+        response_obj = json.loads(response.body)
 
-        tornado.ioloop.IOLoop.instance().start()
-
-	expected_result = '"modules"'': ["'"Broadcast dummy module"
-        
-        self.failIf(self.response.error)
-        assert expected_result in self.response.body
-# self.assertEqual(self.response.body, expected_result_json)
+        self.assertTrue('modules' in response_obj,
+                        "Field 'modules' not found in platform info")
 
 
 if __name__ == '__main__':
-    unittest.main()
+    tornado.testing.main()
