@@ -59,6 +59,7 @@ target/
 
 # Backups
 *~
+*.DS_Store
 
 # Pycharm files
 .idea/*
