@@ -12,7 +12,7 @@ class TestTornadoWeb(tornado.testing.AsyncHTTPTestCase):
         return app.application
 
     def testVersionHandler(self):
-        self.http_client.fetch(self.get_url('/api/v1/info'), self.stop)
+        self.http_client.fetch(self.get_url('/api/v1/info?format=json'), self.stop)
         response = self.wait()
 
         self.failIf(response.error)
