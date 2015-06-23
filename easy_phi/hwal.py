@@ -3,14 +3,18 @@
 
 import serial
 import threading
+
 from tornado import gen
+
+import mod_conf_patch
 
 
 def lock(func):
     """decorator to prevent concurrent execution of some function
-    This decorator should be used to wrap calls to devices to evade overlapping commands from different requests
-    For SCPI supporting devices, same can be achieved by using  SCPI commands *WAI, *OPC? or *STB?,
-    but lock will result in lower latency
+    This decorator should be used to wrap calls to devices to evade overlapping
+    commands from different requests
+    For SCPI supporting devices, same can be achieved by using  SCPI commands
+    *WAI, *OPC? or *STB?, but lock will result in lower latency
     """
     def wrapper(self, *args, **kwargs):
         if not hasattr(self, 'lock'):
@@ -52,42 +56,8 @@ class AbstractMeasurementModule(object):
         """ Get module configuration.
         Configuration format is still under discussion, but likely it will
         be represented by hierarchy of available SCPI commands """
-        # See SYSTem:HELP? and SYSTem:HELP:SYNTax? <command header> for help
-        return (
-            # commands mandatory by IEEE 488.2
-            "*CLS",     # clear status
-            "*ESE",     # standard event status enable
-            "*ESE?",    # get standard event status
-            "*ESR?",    # get event status register
-            "*IDN?",    # identification
-            "*OPC",     # operation complete
-            "*OPC?",    # get operation complete status
-            "*RST",     # reset
-            "*SRE",     # service request enable
-            "*SRE?",    # get service request enable status
-            "*STB?",    # read status byte
-            "*TST?",    # self test
-            "*WAI",     # wait to continue
-            # legacy commands supported by first version of platform
-            # "RAck:Size?",
-            # "SYSTem:DEBUGmode 0|1",
-            # "SYSTem:DEBUGmode?",
-            "SYSTem:ERRor?",
-            "SYSTem:ERRor:NEXT?",
-            # "SYSTem:ERRor:COUNt?",
-            # "SYSTem:VERSion?",
-            # "SYSTem:NUMber:SLots?",
-            # "SLot:<numeric_value>:VERSion?",
-            # "SLot:<numeric_value>:TYpe?",
-            # "SLot:<numeric_value>:NAme?",
-            # "SLot:<numeric_value>:DESCription?",
-            # "SLot:<numeric_value>:SERialnumber?",
-            # "SLot:<numeric_value>:STATus?",
-            # "SLot:<numeric_value>:LOcked?",
-            # "SLot:<numeric_value>:LOcked 0|1",
-            # "SLot:<numeric_value>:DEBUGmode 0|1",
-            # "SLot:<numeric_value>:DEBUGmode?",
-            )
+        # TODO: use SYSTem:HELP? and SYSTem:HELP:SYNTax? <command header>
+        return mod_conf_patch.get_configuration_patch(self.device)
 
     def __str__(self):
         return self.name
@@ -102,7 +72,7 @@ class CDCModule(AbstractMeasurementModule):
     These modules shall be detected by id and return hardcoded configuration.
     """
     def __init__(self, device):
-        assert(self.is_instance(device))
+        assert self.is_instance(device)
         # TODO: replace magic numbers with configuration variables
         self.serial = serial.Serial(device['DEVNAME'], 3000000, timeout=2)
         # TODO: handle legacy modules with SYSTem:NAME?
@@ -120,8 +90,8 @@ class CDCModule(AbstractMeasurementModule):
     @lock
     def scpi(self, command):
         """Send SCPI command to the device
-        :param command: string with SCPI command. It is not validated to be valid SCPI command,
-                it is your responsibility
+        :param command: string with SCPI command. It is not validated to be
+                valid SCPI command,  it is your responsibility
         :return string with command response.
         """
         # sanitize input:
@@ -136,9 +106,10 @@ class CDCModule(AbstractMeasurementModule):
 
 class USBTMCModule(AbstractMeasurementModule):
     """Class to represent USB TMC device
-    Only generic configuration will be returned. USB-TMC devices are support to provice VISA access,
-    so generation of appropriate web interface is not critical. It is possible however to return predefined
-    configuration from some kind of device database
+    Only generic configuration will be returned. USB-TMC devices are supported
+    to provide VISA access, so generation of appropriate web interface is not
+    critical. It is possible however to return predefined configuration from
+    some kind of device database
     """
     def __init__(self, device):
         # TODO: implement this method
@@ -161,7 +132,8 @@ class USBTMCModule(AbstractMeasurementModule):
 
 
 class BroadcastModule(AbstractMeasurementModule):
-    """ Fake module to broadcast messages to all modules connected to platform. """
+    """ Fake module to broadcast messages to all modules connected to platform.
+    """
 
     name = "Broadcast dummy module"
 
@@ -173,8 +145,8 @@ class BroadcastModule(AbstractMeasurementModule):
     @gen.coroutine
     def scpi(self, command):
         """Send SCPI command to all connected modules
-        :param command: string with SCPI command. It is not validated to be valid SCPI command,
-                it is your responsibility
+        :param command: string with SCPI command. It is not validated to be
+                valid SCPI command, it is your responsibility
         :return always returns "OK".
         """
         for module in self.modules:
