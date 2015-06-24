@@ -23,7 +23,7 @@ can not be extracted from equipment itself. In this case we might put list of co
 into special file and tell system to use this list for this piece of equipment. I.e.
 we just mapping of equipment to list of supported scpi commands.
 
-TODO: add path to default configuration file
+By default, configuration file stored at `/etc/easy_phi/modules_conf_patches.conf`
 
 Problem #2
 -----------
@@ -47,5 +47,13 @@ First solution to this problem is to provide more flexible configuration, i.e. n
 by name but also by vendor id, serial number etc. Hopefully more flexible rules allow
 to catch the difference between multiple pieces of ad-hoc equipment.
 
-TODO: add example of configuration
+Configuration example, using two device properties (vendor and serial num):
+
+    [Easy Phi high speed Logic gate]
+    ID_VENDOR = Easy-phi
+    ID_SERIAL_SHORT = 123123123123
+    scpi = CONFigure:OUT1? (OR|AND|IN1|IN2)
+            CONFigure:OUT2? (OR|AND|IN1|IN2)
+            CONFigure:OUT3? (OR|AND|IN1|IN2)
+            CONFigure:OUT4? (OR|AND|IN1|IN2)
     

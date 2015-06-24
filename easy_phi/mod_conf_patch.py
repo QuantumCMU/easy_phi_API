@@ -8,12 +8,11 @@ of supported SCPI commands
 https://en.wikipedia.org/wiki/Standard_Commands_for_Programmable_Instruments
 """
 
-# it was renamed to configparser in Python 3, here for future compatibility
 import ConfigParser
 
 from tornado.options import define, options
 
-define('modules_conf_patches_path', type=list,
+define('modules_conf_patches_path',
        default='/etc/easy_phi/modules_conf_patches.conf')
 
 # legacy_configs holds list of tuples (device_config, module_config)
@@ -61,7 +60,9 @@ def _init_config():
     legacy_configs = []
     for section in confpatch_parser.sections():
         module_config = confpatch_parser.get(section, 'scpi')
-        device_config = [(key, value) for key, value in
+        # key.upper() is necessary because pyudev.Device keys are uppercase
+        # and we want keys in config patches file to be case insensitive
+        device_config = [(key.upper(), value) for key, value in
                          confpatch_parser.items(section) if key != 'scpi']
         legacy_configs.append((device_config, module_config))
     default_section = confpatch_parser.defaults()
@@ -69,7 +70,7 @@ def _init_config():
 
 
 def get_configuration_patch(device):
-    """ Return module configuration from confpatch file
+    """ Return module configuration from configuration file
     This method will return generic conf if no configuration matched
 
     :param device:

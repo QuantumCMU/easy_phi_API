@@ -97,12 +97,14 @@ class PlatformInfoHandler(APIHandler):
             'welcome_message': options.welcome_message
         }
 
+
 class ModulesListHandler(APIHandler):
     """ Return list of modules with their metadata and currnent status (locked/unlocked)"""
     def get(self):
         return [[None, None] if module is None
                 else [module.name, getattr(module, 'used_by', None)]
                 for module in hwconf.modules]
+
 
 class SelectModuleHandler(ModuleHandler):
     """Select the module, identified by ID passed as a URL parameter.
