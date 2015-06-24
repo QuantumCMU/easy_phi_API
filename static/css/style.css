@@ -95,7 +95,7 @@ footer {
 }
 a {
     size: xx-small;
-    background: green;
+    background: #66FFB2;
     width: 35px;
     height: 10px;
     font-size: xx-small;
@@ -111,7 +111,7 @@ a {
 
 a.down {
     size: xx-small;
-    background: red;
+    background: #FF3333;
     width: 35px;
     height: 10px;
     font-size: xx-small;
@@ -121,15 +121,8 @@ a.down {
     border-bottom:solid 2px  #eaeaea;
     border-right: solid 2px #eaeaea;
     float:right;
-    }
-
-div.used_by_lbl {
-    text-align: right;
-    font-size: x-small;
-    color: white;
-    width: 35px
-    height: 10px;
 }
+
 
 
 
