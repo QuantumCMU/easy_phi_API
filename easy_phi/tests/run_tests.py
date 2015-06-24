@@ -1,26 +1,16 @@
 # -*- coding: utf-8 -*-
-import json
 
 import tornado.testing
+from tornado.test.util import unittest
 
-from easy_phi import app
+TEST_MODULES = [
+    'easy_phi.tests.handlers_test',
+    'easy_phi.tests.mod_conf_patch_test',
+]
 
 
-class TestTornadoWeb(tornado.testing.AsyncHTTPTestCase):
-
-    def get_app(self):
-        return app.application
-
-    def testVersionHandler(self):
-        self.http_client.fetch(self.get_url('/api/v1/info?format=json'), self.stop)
-        response = self.wait()
-
-        self.failIf(response.error)
-        response_obj = json.loads(response.body)
-
-        self.assertTrue('modules' in response_obj,
-                        "Field 'modules' not found in platform info")
-
+def all():
+    return unittest.defaultTestLoader.loadTestsFromNames(TEST_MODULES)
 
 if __name__ == '__main__':
     tornado.testing.main()

@@ -3,7 +3,7 @@ clean:
 	rm -rf dist
 
 test:
-	python -m unittest easy_phi.tests.run_tests
+	python -m easy_phi.tests.run_tests
 
 run:
 	easy_phi/app.py
