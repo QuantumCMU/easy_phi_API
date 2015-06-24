@@ -6,6 +6,7 @@ from tornado.test.util import unittest
 TEST_MODULES = [
     'easy_phi.tests.handlers_test',
     'easy_phi.tests.mod_conf_patch_test',
+    ‘easy_phi.tests.regression_test.py’
 ]
 
 
