@@ -170,17 +170,16 @@ class BroadcastModule(AbstractMeasurementModule):
         super(BroadcastModule, self).__init__(None)
 
     @lock
-    @gen.coroutine
     def scpi(self, command):
         """Send SCPI command to all connected modules
         :param command: string with SCPI command. It is not validated to be valid SCPI command,
                 it is your responsibility
         :return always returns "OK".
         """
-        for module in self.modules:
+        for module in self.modules[1:]:
             if isinstance(module, AbstractMeasurementModule):
-                yield module.scpi(command)
-        raise gen.Return("OK")
+                module.scpi(command)
+        return "OK"
 
     def get_configuration(self):
         return []

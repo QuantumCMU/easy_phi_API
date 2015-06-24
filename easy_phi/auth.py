@@ -14,7 +14,7 @@ from tornado.options import options
 
 # map of api_tokens to authenticated users
 # i.e. active_tokens[hash_value] = username
-active_tokens = {}
+active_tokens = {'temporary_token':'Somebody'}
 
 
 def validate_api_token(token):

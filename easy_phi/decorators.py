@@ -59,6 +59,9 @@ def api_auth(func):
             return {'error': "Invalid api key. Please check if you're"
                              " authenticated in the system"}
         self.api_token = api_token
+
+        # TODO remove. For debug purposes only
+        self.api_token = 'temporary_token'
         return func(self)
 
     return wrapper
