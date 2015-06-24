@@ -6,8 +6,10 @@
 """
 
 import pyudev
-import hwal
+
 from tornado.options import define, options
+
+import hwal
 
 define('ports', type=list, default=[])
 
