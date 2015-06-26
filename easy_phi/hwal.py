@@ -5,8 +5,13 @@ import serial
 import threading
 
 from tornado import gen
+from tornado.options import options, define
 
 import mod_conf_patch
+
+
+define("serial_port_timeout", default=2)
+define("serial_port_baudrate", default=3000000)
 
 
 def lock(func):
@@ -73,9 +78,11 @@ class CDCModule(AbstractMeasurementModule):
     """
     def __init__(self, device):
         assert self.is_instance(device)
-        # TODO: replace magic numbers with configuration variables
-        self.serial = serial.Serial(device['DEVNAME'], 3000000, timeout=2)
-        # TODO: handle legacy modules with SYSTem:NAME?
+        self.serial = serial.Serial(
+            device['DEVNAME'],
+            options.serial_port_baudrate,
+            timeout=options.serial_port_timeout
+        )
         self.name = str(self.scpi("*IDN?")).rstrip()  # remove newline
         super(CDCModule, self).__init__(device)
 
