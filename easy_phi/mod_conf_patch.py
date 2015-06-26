@@ -19,10 +19,10 @@ define('modules_conf_patches_path',
 #
 # module_config is a list of supported SCPI commands separated by newline
 # Example:
-# CONFigure:OUT1? (OR|AND|IN1|IN2)
-# CONFigure:OUT2? (OR|AND|IN1|IN2)
-# CONFigure:OUT3? (OR|AND|IN1|IN2)
-# CONFigure:OUT4? (OR|AND|IN1|IN2)
+# CONFigure:OUT1?
+# CONFigure:OUT1 (OR|AND|IN1|IN2)
+# CONFigure:OUT2?
+# CONFigure:OUT2 (OR|AND|IN1|IN2)
 #
 # device config is a list of tuples (property, value)
 # property is a name of udev device property, see device_detection.md

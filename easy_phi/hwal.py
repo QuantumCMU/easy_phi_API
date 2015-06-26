@@ -111,6 +111,23 @@ class CDCModule(AbstractMeasurementModule):
         return output
 
 
+class LegacyEasyPhiModule(CDCModule):
+    """ Legacy modules implemented for the first version of platform.
+    Main difference from "normal" CDC modules is name handling. In first
+    versions of firmware *IDN? request returned the same name for all modules.
+    Actual device name was returned by SYSTEM:NAME? command
+    """
+    def __init__(self, device):
+        super(LegacyEasyPhiModule, self).__init__(device)
+        self.name = str(self.scpi("SYSTEM:NAME?")).strip()
+
+    @staticmethod
+    def is_instance(device):
+        # TODO: check for MSC device on under the same parent in device tree
+        return CDCModule.is_instance(device) \
+            and device['ID_VENDOR'] == 'Easy-phi'
+
+
 class USBTMCModule(AbstractMeasurementModule):
     """Class to represent USB TMC device
     Only generic configuration will be returned. USB-TMC devices are supported
@@ -143,6 +160,9 @@ class BroadcastModule(AbstractMeasurementModule):
     """
 
     name = "Broadcast dummy module"
+    platformwide_commands = [
+        # TODO: add commands requested by Raphael
+    ]
 
     def __init__(self, modules):
         self.modules = modules
@@ -156,16 +176,26 @@ class BroadcastModule(AbstractMeasurementModule):
                 valid SCPI command, it is your responsibility
         :return always returns "OK".
         """
+        # TODO: check if it is a platformwide command and handle it here
+
         for module in self.modules:
             if isinstance(module, AbstractMeasurementModule):
                 yield module.scpi(command)
         raise gen.Return("OK")
 
     def get_configuration(self):
-        return []
+        conf = super(BroadcastModule, self).get_configuration()
+        conf += [
+            # Platform-wide SCPI commands
+        ]
+        return conf
 
 # Please note that it is not conventional __all__ defined in __init__.py,
 # it contains list of classes instead of strings.
 # hwconf.py iterates these modules and calls static method is_instance()
 # to see if device is supported by the system
-__all__ = module_classes = [CDCModule, USBTMCModule]
+__all__ = module_classes = [
+    LegacyEasyPhiModule,
+    CDCModule,
+    USBTMCModule
+]
