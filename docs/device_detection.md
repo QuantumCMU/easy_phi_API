@@ -2,7 +2,8 @@
 General
 ===
 
-Unfortunately, we have no assumptions about device vendor and device id. For example, legacy modules detected as:
+Unfortunately, we have no assumptions about device vendor and device id. For 
+example, legacy modules detected as:
 > Bus 003 Device 007: ID 03eb:2424 Atmel Corp.
 where 0x03eb is Atmel vendor id, i.e. manufacturer of controller chip.
 
@@ -10,18 +11,23 @@ where 0x03eb is Atmel vendor id, i.e. manufacturer of controller chip.
 udev rules
 =====
 
-udev is a system component responsible for mounting devices from sysfs into user space (/dev/*). It uses set of rules
-for creating device nodes, to ensure proper access mode, node name etc. These rules are stored in two places,
-`/lib/udev/rules.d/` and `/etc/udev/rules.d`. The former one is a set of default system rules, the latter is user
-defined rules. As a rule of thumb you should not edit these files directly but put another one to to override the
+udev is a system component responsible for mounting devices from sysfs into 
+user space (/dev/*). It uses set of rules for creating device nodes, to ensure 
+proper access mode, node name etc. These rules are stored in two places, 
+`/lib/udev/rules.d/` and `/etc/udev/rules.d`. The former one is a set of 
+default system rules, the latter is user defined rules. As a rule of thumb you 
+should not edit these files directly but put another one to override the
 existing rule.
 
-Depending on the system used and usb connection topology, detected modules may be assigned different properties and
-match different udev rules. Sometimes it results in improper mode set or node name. To override existing setting, you
-need it to be executed before default rule, so new rule shoud have lower number. If you want to add new property or
-create additional symlink using existing properties, you need to add new rule with higher number.
+Depending on the system used and usb connection topology, detected modules may
+be assigned different properties and match different udev rules. Sometimes it 
+results in improper mode set or node name. To override existing setting, you
+need it to be executed before default rule, so new rule shoud have lower 
+number. If you want to add new property or create additional symlink using 
+existing properties, you need to add new rule with higher number.
 
-For example, by default on Ubuntu system tty and serial devices are affected by these rules:
+For example, by default on Ubuntu system tty and serial devices are affected 
+by these rules:
 
     /lib/udev/rules.d/50-udev-default.rules
     /lib/udev/rules.d/60-persistent-serial.rules
