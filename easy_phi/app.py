@@ -80,6 +80,7 @@ class ModuleHandler(APIHandler):
         if err:
             self.set_status(400)
             self.finish({'error': err})
+            return
 
         self.module = hwconf.modules[self.slot]
 
