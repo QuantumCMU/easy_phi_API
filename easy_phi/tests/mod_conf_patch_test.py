@@ -95,7 +95,7 @@ scpi = CONFigure:OUT1? (OR|AND|IN1|IN2)
         ))
 
     def test_get_configuration_patch(self):
-        self.assertEqual(
+        self.assertSequenceEqual(
             mod_conf_patch.get_configuration_patch(self.device),
             [
                 "*IDN?",
@@ -106,7 +106,7 @@ scpi = CONFigure:OUT1? (OR|AND|IN1|IN2)
             ]
         )
 
-        self.assertEqual(
+        self.assertSequenceEqual(
             mod_conf_patch.get_configuration_patch({}),
             ["*IDN?"]
         )
