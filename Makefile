@@ -6,7 +6,7 @@ test:
 	python -m easy_phi.tests.run_tests
 
 run:
-	easy_phi/app.py
+	python easy_phi/app.py
 
 package:
 	make clean

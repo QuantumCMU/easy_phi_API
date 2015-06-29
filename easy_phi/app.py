@@ -152,9 +152,9 @@ class SelectModuleHandler(ModuleHandler):
         used_by = getattr(self.module, 'used_by', None)
         if used_by is not None:
             self.set_status(400)
-            return {'error': 'Module is used by {0}. If you '.format(used_by) +
-                             'need this module, you might force unlock it '
-                             'by issuing DELETE request first.'}
+            return {'error': "Module is used by {0}. If you need this module, "
+                             "you might force unlock it by issuing DELETE "
+                             "request first.".format(used_by)}
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
         self.write("OK")
 
@@ -187,8 +187,8 @@ class SCPICommandHandler(ModuleHandler):
         if used_by != auth.user_by_token(self.api_token):
             self.set_status(409)  # Conflict
             self.finish({
-                'error': 'Module is used by {0}. If you '.format(used_by) +
-                         'need this module, you might force unlock it first.'
+                'error': "Module is used by {0}. If you need this module, you "
+                         "need force unlock it first.".format(used_by)
             })
             return
 
@@ -212,16 +212,27 @@ class ModuleUIHandler(ModuleHandler):
         return super(APIHandler, self).write(chunk)
 
     def get(self):
+        container = self.get_argument('container', '')
+        if not container:
+            self.set_status(400)
+            self.finish({'errror': "Missing container parameter, jQuery"
+                         "of the DOM element to include module UI"})
+            return
+
         supported_commands = self.module.get_configuration()
         widgets = scpi2widgets.scpi2widgets(supported_commands, self.slot)
-        widgets = [
-            "alert(slot_id);",
-            "alert(container);",
-            "alert(ep);",
-            "alert(ep.scpi);",
-        ]
+
         self.set_header('Content-type', 'application/javascript')
-        self.write("\n".join(widgets))
+        for widget in widgets:
+            # this wrapping into anonymous function is to not mess with global
+            # variables. To isolate syntax errors, in future it should be
+            # wrapped into eval() statement. It is not done now for debug
+            # purposes
+            # TODO: wrap into eval()
+            self.write("(function(slot, container, scpi){{\n"
+                       "\t{widget}\n"
+                       "}})({slot}, {container}, ep.scpi)\n".format(
+                           widget=widget, slot=self.slot, container=container))
 
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
@@ -230,6 +241,14 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
     def get(self):
         self.write("Coming soon..")
 
+
+class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
+
+    def set_extra_headers(self, path):
+        if options.debug:
+            # parent method is empty, no need to call super
+            self.set_header(
+                'Cache-control', 'no-cache, no-store, must-revalidate')
 
 def main(application):
     if __name__ == '__main__':
@@ -268,7 +287,7 @@ application = tornado.web.Application([
     (r"/api/v1/send_scpi", SCPICommandHandler),
     (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
-    (r"/static/(.*)", tornado.web.StaticFileHandler,
+    (r"/static/(.*)", ContorlledCacheStaticFilesHandler,
         {"path": options.static_path}),
 ], **settings)
 
