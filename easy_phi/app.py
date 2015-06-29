@@ -34,16 +34,6 @@ define("debug", default=False)
 
 define("default_format", default='json')
 
-settings = {
-    'debug': options.debug,
-    'autoreload' : options.debug,
-}
-
-try:
-    parse_config_file(options.conf_path, final=False)
-except IOError:  # file might not exist by default path
-    raise
-
 
 class APIHandler(tornado.web.RequestHandler):
     """ Tornado handlers subclass to format response to xml/json/plain """
@@ -220,7 +210,7 @@ class ModuleUIHandler(ModuleHandler):
             return
 
         supported_commands = self.module.get_configuration()
-        widgets = scpi2widgets.scpi2widgets(supported_commands, self.slot)
+        widgets = scpi2widgets.scpi2widgets(supported_commands)
 
         self.set_header('Content-type', 'application/javascript')
         for widget in widgets:
@@ -229,10 +219,14 @@ class ModuleUIHandler(ModuleHandler):
             # wrapped into eval() statement. It is not done now for debug
             # purposes
             # TODO: wrap into eval()
-            self.write("(function(slot, container, scpi){{\n"
-                       "\t{widget}\n"
-                       "}})({slot}, {container}, ep.scpi)\n".format(
-                           widget=widget, slot=self.slot, container=container))
+            self.write(
+                "(function(slot, container, scpi){{\n"
+                "\t{widget}\n"
+                "}})({slot}, '{container}', function(scpi, callback){{\n"
+                "    ep.scpi({slot}, scpi, callback);\n}})\n".format(
+                    widget=widget, slot=self.slot, container=container
+                )
+            )
 
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
@@ -250,19 +244,8 @@ class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
             self.set_header(
                 'Cache-control', 'no-cache, no-store, must-revalidate')
 
-def main(application):
-    if __name__ == '__main__':
-        # parse command line twice to allow pass configuration file path
-        parse_command_line(final=False)
-        parse_config_file(options.conf_path, final=False)
-        # command-line args override conf file options
-        parse_command_line()
-    else:
-        try:
-            parse_config_file(options.conf_path, final=False)
-        except IOError:  # configuration file doesn't exist, use defaults
-            pass
 
+def main(application):
     # start hw configuration monitoring. It requires configuration of hw ports
     # so it shall be done after parsing conf file
     hwconf.start()
@@ -274,6 +257,22 @@ def main(application):
     tornado.ioloop.IOLoop.current().start()
 
     # TODO: add TCP socket handler to listen for HiSlip requests from VISA
+
+if __name__ == '__main__':
+    # parse command line twice to allow pass configuration file path
+    parse_command_line(final=False)
+    parse_config_file(options.conf_path, final=False)
+    # command-line args override conf file options
+    parse_command_line()
+else:
+    try:
+        parse_config_file(options.conf_path, final=False)
+    except IOError:  # configuration file doesn't exist, use defaults
+        pass
+
+settings = {
+    'debug': options.debug,
+}
 
 # URL schemas to RequestHandler classes mapping
 application = tornado.web.Application([
