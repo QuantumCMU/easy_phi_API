@@ -5,6 +5,7 @@ import tornado.testing
 
 from easy_phi import app
 
+
 class PlatformInfoTest(tornado.testing.AsyncHTTPTestCase):
 
     def get_app(self):
@@ -113,45 +114,62 @@ class ListSCPICommandsTest(tornado.testing.AsyncHTTPTestCase):
 
 
 class SCPICommandTest(tornado.testing.AsyncHTTPTestCase):
+    api_url = '/api/v1/send_scpi?format=json'
 
     def get_app(self):
         return app.application
 
     def test_slot_validation(self):
         # test on Broadcast pseudo module
-        response = self.fetch(
-            '/api/v1/module?format=json',
-            method='POST', body='*IDN?')
+        response = self.fetch(self.api_url, method='POST', body='*IDN?')
 
         self.assertEqual(
             response.code, 400,
             "Request without slot number did not cause error response")
 
         response = self.fetch(
-            '/api/v1/module?format=json&slot=aaa',
-            method='POST', body='*IDN?')
+            self.api_url+'&slot=aaa', method='POST', body='*IDN?')
 
         self.assertEqual(
             response.code, 400,
             "Request with non-numeric slot number did not cause error response")
 
         response = self.fetch(
-            '/api/v1/module?format=json&slot=65535',
-            method='POST', body='*IDN?')
+            self.api_url+'&slot=65535', method='POST', body='*IDN?')
 
         self.assertEqual(
             response.code, 400,
             "Request with slot number bigger than available ports"
             "did not cause error response")
 
-        response = self.fetch('/api/v1/modules_list?format=json')
+    def test_systemwide_scpi_command(self):
+        response = self.fetch(
+            self.api_url + '&slot=0', method='POST', body='*IDN?')
+        response_obj = json.loads(response)
+        self.assertIsInstance(
+            response_obj, basestring,
+            "Systemwide SCPI command returned non-string")
+        self.assertTrue(
+            response_obj.startswith("Broadcast"),
+            "Module name in slot #0 does not start with 'Broadcast'")
 
+        response = self.fetch(
+            self.api_url+'&slot=0', method='POST', body='SYST:NAME?')
+        response_obj = json.loads(response)
+        self.assertIsInstance(
+            response_obj, basestring,
+            "Systemwide SCPI command returned non-string")
+
+    def test_attempt_real_scpi_command(self):
+        response = self.fetch('/api/v1/modules_list?format=json')
         self.failIf(response.error, "Module list returned error")
         modules = json.loads(response.body)
         for slot, module in enumerate(modules[1:]):
             if module is not None:
                 response = self.fetch(
-                    '/api/v1/module?format=json&slot={0}'.format(slot+1),
+                    self.api_url+'&slot={0}'.format(slot+1),
                     method='POST', body='*IDN?')
                 response_obj = json.loads(response)
-                self.assertIsInstance(response_obj, basestring)
+                self.assertIsInstance(
+                    response_obj, basestring,
+                    "Module SCPI command expected to return string")

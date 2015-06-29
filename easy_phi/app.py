@@ -104,7 +104,7 @@ class PlatformInfoHandler(APIHandler):
             'sw_version': VERSION,
             'hw_version': options.hw_version,
             'vendor': options.vendor,
-            'slots': len(hwconf.modules),
+            'slots': len(options.ports),
             'supported_api_versions': [1],
             'welcome_message': options.welcome_message
         })
@@ -118,7 +118,6 @@ class ModuleInfoHandler(ModuleHandler):
         device = self.module.device or {}
         self.write({
             'name': self.module.name,
-            'used_by': getattr(self.module, 'used_by', None),
             'sw_version': 'N/A',  # TODO: find out actual field
             'hw_version': device.get('ID_REVISION', 'N/A'),
             'vendor': device.get('ID_VENDOR', 'N/A'),
@@ -148,7 +147,6 @@ class SelectModuleHandler(ModuleHandler):
     """
     allow_broadcast = False
 
-    @api_auth
     def post(self):
         """ Set user lock on module to indicate it is used by someone """
         used_by = getattr(self.module, 'used_by', None)
@@ -160,7 +158,6 @@ class SelectModuleHandler(ModuleHandler):
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
         self.write("OK")
 
-    @api_auth
     def delete(self):
         """ Force to remove any user lock from the module """
         used_by = getattr(self.module, 'used_by', None)
@@ -267,8 +264,8 @@ application = tornado.web.Application([
     (r"/api/v1/module", ModuleInfoHandler),
     (r"/api/v1/modules_list", ModulesListHandler),
     (r"/api/v1/module_scpi_list", ListSCPICommandsHandler),
-    (r"/api/v1/module/select", SelectModuleHandler),
-    (r"/api/v1/module", SCPICommandHandler),
+    (r"/api/v1/lock_module", SelectModuleHandler),
+    (r"/api/v1/send_scpi", SCPICommandHandler),
     (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
     (r"/static/(.*)", tornado.web.StaticFileHandler,
