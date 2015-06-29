@@ -20,10 +20,8 @@ def scpi2widgets(configuration):
     """ Return javascript widgets to create UI corresponding to supported
     SCPI commands.
 
-    :param configuration: list (iterable) of supported SCPI commands
-            list of commands can be obtained from module object by
-    :param slot_id: integer to be used to substitute {slot_id} in widgets
-    :param container: jQuery selector for DOM element to place widget in
+    :param configuration: list (iterable) of SCPI commands supported by module.
+            This list can be obtained by module.get_configuration
     :return: list of widgets, i.e. chunks of javascript creating web UI
     """
     global _widgets_storage
@@ -36,9 +34,9 @@ def scpi2widgets(configuration):
         _widgets_storage = ConfigParser.ConfigParser()
         _widgets_storage.read(options.widgets_conf_path)
         if 'scpi' in _widgets_storage.defaults() or \
-            'widget' in _widgets_storage.defaults():
+                'widget' in _widgets_storage.defaults():
             logging.warning("widgets configuration file has default values "
-                             "for scpi or widget (it should not)")
+                            "for scpi or widget (it should not)")
         for section in _widgets_storage.sections():
             if not valid_section(section):
                 logging.warning("Section {0} does not define "
