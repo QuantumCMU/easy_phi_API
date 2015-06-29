@@ -3,43 +3,49 @@
 <head>
     <title>Easy Phi - test measurement equipment platform</title>
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
-    <meta content="utf-8" http-equiv="encoding">
     <link rel="stylesheet" href="css/style.css" type="text/css" media="screen, projection">
+    <link rel="stylesheet" href="css/jquery-ui.min.css" type="text/css" media="screen, projection">
 </head>
 
 <body>
-<div id="platform_info">
-    <div>Vendor: <span id="txt_vendor">Loading</span></div>
-
-    <div>Software version: <span id="txt_sw_version">Loading</span></div>
-
-    <div>Hardware version: <span id="txt_hw_version">Loading</span></div>
-
-    <div>Supported API versions: <span id="txt_api_versions">Loading</span></div>
-
-    <div>Number of slots: <span id="txt_number_of_slots">Loading</span></div>
-
-    <div>Number of modules: <span id="txt_number_of_modules">Loading</span></div>
-
-    <div>Modules in use: <span id="txt_modules_in_use">Loading</span></div>
+<div class = 'header_container'>
+    <div class='logo'>
+        <img src="img/logo.png" alt='Logo' style='height: 100%;'>
+    </div>
+    <div id="txt_wlcm_msg" class = 'header_text'></div>
 </div>
 
-<div id="console_placeholder">
-    Console output:
-    <textarea rows="4" cols="50" id="log_console">
-    </textarea>
-    <button id="btn_clear">Clear</button>
-    <button id="btn_export">Export</button>
+<div class = 'left_container'>
+    <div id="platform_info_container">
+    Platform info:
+        <div id="platform_info">
+            <div>Vendor: <span id="txt_vendor">Loading</span></div>
+            <div>Software version: <span id="txt_sw_version">Loading</span></div>
+            <div>Hardware version: <span id="txt_hw_version">Loading</span></div>
+            <div>Supported API versions: <span id="txt_api_versions">Loading</span></div>
+            <div>Number of slots: <span id="txt_number_of_slots">Loading</span></div>
+            <div>Number of modules: <span id="txt_number_of_modules">Loading</span></div>
+            <div>Modules in use: <span id="txt_modules_in_use">Loading</span></div>
+        </div>
+     </div>
+    <div id="console_container">
+        Console output:
+        <textarea rows="4" cols="50" id="log_console" readonly></textarea>
+        <button id="btn_clear">Clear</button>
+    </div>
 </div>
 
-<div id="modules_list">
+<div class = 'right_container'>
+    <div id='modules_list_container'>
+        Modules:
+        <div id="modules_list" class="ui-accordion">
+        </div>
+     </div>
 </div>
-
 
 <footer>
-    <div id="txt_wlcm_msg"></div>
+    <div id="txt_copyright">© 2015 University of Geneva - easy-phi</div>
 </footer>
-
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
 <script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
