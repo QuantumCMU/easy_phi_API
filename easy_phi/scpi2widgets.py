@@ -16,7 +16,7 @@ define("widgets_conf_path", default='/etc/easy_phi/widgets.conf')
 _widgets_storage = None
 
 
-def scpi2widgets(configuration, slot_id, container):
+def scpi2widgets(configuration):
     """ Return javascript widgets to create UI corresponding to supported
     SCPI commands.
 
@@ -35,6 +35,10 @@ def scpi2widgets(configuration, slot_id, container):
     if _widgets_storage is None:  # lazy initialization
         _widgets_storage = ConfigParser.ConfigParser()
         _widgets_storage.read(options.widgets_conf_path)
+        if 'scpi' in _widgets_storage.defaults() or \
+            'widget' in _widgets_storage.defaults():
+            logging.warning("widgets configuration file has default values "
+                             "for scpi or widget (it should not)")
         for section in _widgets_storage.sections():
             if not valid_section(section):
                 logging.warning("Section {0} does not define "
@@ -51,7 +55,7 @@ def scpi2widgets(configuration, slot_id, container):
         widget_conf = _widgets_storage.get(section, 'scpi').split("\n")
         if module_conf.issuperset(widget_conf):
             widget = _widgets_storage.get(section, 'widget')
-            widgets.append(widget.format(slot_id=slot_id, container=container))
+            widgets.append(widget)
             module_conf = module_conf.difference(widget_conf)
 
     return widgets

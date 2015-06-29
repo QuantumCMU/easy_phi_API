@@ -32,13 +32,13 @@ widget = {sysname_widget}\n""".format(reset_widget=self.reset_widget,
         options.widgets_conf_path = widgets_conf.name
 
     def test_scpi2widgets(self):
-        widgets = scpi2widgets.scpi2widgets([], 0,  self.container)
+        widgets = scpi2widgets.scpi2widgets([])
         self.assertIsInstance(widgets, list)
         self.assertSequenceEqual(
             widgets, [],
             "Empty module configuration resulted in non-empty widgets")
 
-        widgets = scpi2widgets.scpi2widgets(["*RST"], 0, self.container)
+        widgets = scpi2widgets.scpi2widgets(["*RST"])
         self.assertIsInstance(widgets, list)
         self.assertSequenceEqual(
             widgets, [self.reset_widget],
@@ -47,7 +47,7 @@ widget = {sysname_widget}\n""".format(reset_widget=self.reset_widget,
                 widgets=widgets, reset_widget=self.reset_widget)
         )
 
-        widgets = scpi2widgets.scpi2widgets(["SYSTem:NAME?"], 0, self.container)
+        widgets = scpi2widgets.scpi2widgets(["SYSTem:NAME?"])
         self.assertIsInstance(widgets, list)
         self.assertSequenceEqual(
             widgets, [self.sysname_widget],
@@ -56,8 +56,7 @@ widget = {sysname_widget}\n""".format(reset_widget=self.reset_widget,
                 system_widget=self.sysname_widget, widgets=widgets)
         )
 
-        widgets = scpi2widgets.scpi2widgets(
-            ["SYSTem:NAME?", "*RST"], 0, self.container)
+        widgets = scpi2widgets.scpi2widgets(["SYSTem:NAME?", "*RST"])
         self.assertIsInstance(widgets, list)
         self.assertSequenceEqual(
             widgets, [self.sysname_widget, self.reset_widget])
