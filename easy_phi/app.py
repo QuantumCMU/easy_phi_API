@@ -242,6 +242,14 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
         self.write("Coming soon..")
 
 
+class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
+
+    def set_extra_headers(self, path):
+        if options.debug:
+            # parent method is empty, no need to call super
+            self.set_header(
+                'Cache-control', 'no-cache, no-store, must-revalidate')
+
 def main(application):
     if __name__ == '__main__':
         # parse command line twice to allow pass configuration file path
@@ -279,7 +287,7 @@ application = tornado.web.Application([
     (r"/api/v1/send_scpi", SCPICommandHandler),
     (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
-    (r"/static/(.*)", tornado.web.StaticFileHandler,
+    (r"/static/(.*)", ContorlledCacheStaticFilesHandler,
         {"path": options.static_path}),
 ], **settings)
 
