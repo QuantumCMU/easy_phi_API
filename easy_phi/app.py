@@ -14,6 +14,7 @@ from tornado.options import parse_config_file, parse_command_line
 import hwconf
 import auth
 import utils
+import scpi2widgets
 from decorators import api_auth
 
 VERSION = "0.1"
@@ -178,7 +179,7 @@ class SelectModuleHandler(ModuleHandler):
 
 
 class SCPICommandHandler(ModuleHandler):
-    """API functions related to a module in the specified rack slot"""
+    """API function to send SCPI command to module in the specified rack slot"""
     allow_broadcast = True
 
     def post(self):
@@ -201,6 +202,29 @@ class SCPICommandHandler(ModuleHandler):
             return
 
         self.write(self.module.scpi(scpi_command))
+
+
+class ModuleUIHandler(ModuleHandler):
+    """API function to return small JS script to create module UI"""
+    allow_broadcast = True
+
+    def write(self, chunk):
+        """This handler needs slot parameter but does not need formatting
+        This method is restored to original tornado.web.RequestHandler.write()
+        """
+        return super(APIHandler, self).write(chunk)
+
+    def get(self):
+        supported_commands = self.module.get_configuration()
+        widgets = scpi2widgets.scpi2widgets(supported_commands, self.slot)
+        widgets = [
+            "alert(slot_id);",
+            "alert(container);",
+            "alert(ep);",
+            "alert(ep.scpi);",
+        ]
+        self.set_header('Content-type', 'application/javascript')
+        self.write("\n".join(widgets))
 
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
@@ -245,6 +269,7 @@ application = tornado.web.Application([
     (r"/api/v1/module_scpi_list", ListSCPICommandsHandler),
     (r"/api/v1/module/select", SelectModuleHandler),
     (r"/api/v1/module", SCPICommandHandler),
+    (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
     (r"/static/(.*)", tornado.web.StaticFileHandler,
         {"path": options.static_path}),
