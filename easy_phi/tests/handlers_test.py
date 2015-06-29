@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import unittest
 
 import tornado.testing
 
@@ -142,6 +143,7 @@ class SCPICommandTest(tornado.testing.AsyncHTTPTestCase):
             "Request with slot number bigger than available ports"
             "did not cause error response")
 
+    @unittest.skip("Systemwide commands not implemented yet")
     def test_systemwide_scpi_command(self):
         response = self.fetch(
             self.api_url + '&slot=0', method='POST', body='*IDN?')

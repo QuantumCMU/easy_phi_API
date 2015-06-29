@@ -17,7 +17,7 @@ def format_conversion(chunk, fmt, debug=False):
         ctype = 'text/plain'
         if isinstance(chunk, dict):
             chunk = "\n".join((u"{0}: {1}".format(*item)
-                                       for item in chunk.items()))
+                               for item in chunk.items()))
         elif isinstance(chunk, list):
             chunk = "\n".join(map(unicode, chunk))
         else:
@@ -35,5 +35,3 @@ def format_conversion(chunk, fmt, debug=False):
         raise ValueError("fmt is supposed to be xml, plain or json")
 
     return chunk, ctype
-
-
