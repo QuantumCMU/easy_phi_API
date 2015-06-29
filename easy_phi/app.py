@@ -8,11 +8,13 @@ import os
 import tornado.ioloop
 import tornado.httpserver
 import tornado.web
-from tornado.options import options, parse_config_file, parse_command_line, define
+from tornado.options import options, define
+from tornado.options import parse_config_file, parse_command_line
 
 import hwconf
 import auth
-from decorators import multiformat, api_auth
+import utils
+from decorators import api_auth
 
 VERSION = "0.1"
 LICENSE = "GPL v3.0"
@@ -20,7 +22,8 @@ PROJECT = "easy_phi"
 
 # configuration defaults
 define("conf_path", default="/etc/easy_phi.conf")
-define("static_path", default=os.path.join(os.path.dirname(__file__), '..', 'static'))
+define("static_path",
+       default=os.path.join(os.path.dirname(__file__), '..', 'static'))
 define("server_port", default=8000)
 define("hw_version", default='N/A')
 define("vendor", type=str)
@@ -28,26 +31,34 @@ define("welcome_message", default="")
 
 define("debug", default=False)
 
+define("default_format", default='json')
+
 settings = {
     'debug': options.debug,
+    'autoreload' : options.debug,
 }
 
-
-class APIHandlerMetaclass(type):
-    """ Metaclass to apply multiformat decorator to all REST methods """
-    def __new__(cls, name, bases, dct):
-        # Now, get/put/post/whatever method can return object instead of self.write-ing
-        handler = super(APIHandlerMetaclass, cls).__new__(cls, name, bases, dct)
-
-        for method in ('get', 'post', 'put', 'head', 'delete'):
-            setattr(handler, method, multiformat(getattr(handler, method)))
-
-        return handler
+try:
+    parse_config_file(options.conf_path, final=False)
+except IOError:  # file might not exist by default path
+    raise
 
 
 class APIHandler(tornado.web.RequestHandler):
-    """ Tornado handlers subclass to format response into xml/json/plain """
-    __metaclass__ = APIHandlerMetaclass
+    """ Tornado handlers subclass to format response to xml/json/plain """
+
+    def write(self, chunk):
+        fmt = self.get_argument('format', options.default_format)
+        if fmt not in ('xml', 'json', 'plain'):
+            fmt = options.default_format
+        chunk, ctype = utils.format_conversion(chunk, fmt, options.debug)
+        if fmt == 'json':
+            callback = self.get_argument('callback', '')
+            if callback:  # JSONP support, for cross-domain static JS API
+                chunk = ''.join((callback, '(', chunk, ')'))
+        self.set_header('Content-Type', ctype)
+
+        super(APIHandler, self).write(chunk)
 
 
 class ModuleHandler(APIHandler):
@@ -88,23 +99,44 @@ class ModuleHandler(APIHandler):
 class PlatformInfoHandler(APIHandler):
     """ Return basic info about the system """
     def get(self):
-        return {
+        self.write({
             'sw_version': VERSION,
             'hw_version': options.hw_version,
             'vendor': options.vendor,
             'slots': len(hwconf.modules),
             'supported_api_versions': [1],
-            'modules': [module and module.name for module in hwconf.modules],
             'welcome_message': options.welcome_message
-        }
+        })
+
+
+class ModuleInfoHandler(ModuleHandler):
+    """ Return basic info about a module """
+    allow_broadcast = True
+
+    def get(self):
+        device = self.module.device or {}
+        self.write({
+            'name': self.module.name,
+            'used_by': getattr(self.module, 'used_by', None),
+            'sw_version': 'N/A',  # TODO: find out actual field
+            'hw_version': device.get('ID_REVISION', 'N/A'),
+            'vendor': device.get('ID_VENDOR', 'N/A'),
+            'serial_no': device.get('ID_SERIAL_SHORT', 'N/A'),
+        })
 
 
 class ModulesListHandler(APIHandler):
-    """ Return list of modules with their metadata and currnent status (locked/unlocked)"""
+    """ Return list of module names"""
     def get(self):
-        return [[None, None] if module is None
-                else [module.name, getattr(module, 'used_by', None)]
-                for module in hwconf.modules]
+        self.write([module and module.name for module in hwconf.modules])
+
+
+class ListSCPICommandsHandler(ModuleHandler):
+    """List SCPI commands supported by the selected module. """
+    allow_broadcast = True
+
+    def get(self):
+        self.write(self.module.get_configuration())
 
 
 class SelectModuleHandler(ModuleHandler):
@@ -112,7 +144,6 @@ class SelectModuleHandler(ModuleHandler):
 
     When user selects module in web interface, all other users should be
     be able to see this module is used by someone else.
-
     """
     allow_broadcast = False
 
@@ -126,7 +157,7 @@ class SelectModuleHandler(ModuleHandler):
                              'need this module, you might force unlock it '
                              'by issuing DELETE request first.'}
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
-        return "OK"
+        self.write("OK")
 
     @api_auth
     def delete(self):
@@ -136,14 +167,14 @@ class SelectModuleHandler(ModuleHandler):
             self.set_status(400)
             return {'error': 'Module is not used by anyone at the moment'}
         setattr(self.module, 'used_by', None)
-        return "OK"
+        self.write("OK")
 
     def get(self):
         """ Return user lock status of the module
         :param: id: integer, slot number 1...N
         :return: user name of the person using this module, None otherwise
         """
-        return getattr(self.module, 'used_by', None)
+        self.write(getattr(self.module, 'used_by', None))
 
 
 class SCPICommandHandler(ModuleHandler):
@@ -157,19 +188,19 @@ class SCPICommandHandler(ModuleHandler):
         # auth.user_by_token(None) returns None, in case selection isn't used
         if used_by != auth.user_by_token(self.api_token):
             self.set_status(409)  # Conflict
-            return {'error': 'Module is used by {0}. If you '.format(used_by) +
-                             'need this module, you might force unlock it first.'}
+            self.finish({
+                'error': 'Module is used by {0}. If you '.format(used_by) +
+                         'need this module, you might force unlock it first.'
+            })
+            return
 
         scpi_command = self.request.body
         if not scpi_command:
             self.set_status(400)
-            return {'error': 'SCPI command expected in POST body'}
+            self.finish({'error': 'SCPI command expected in POST body'})
+            return
 
-        return self.module.scpi(scpi_command)
-
-    def get(self):
-        """Get module configuration (i.e. list of available SCPI commands)"""
-        return self.module.get_configuration()
+        self.write(self.module.scpi(scpi_command))
 
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
@@ -178,22 +209,19 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
     def get(self):
         self.write("Coming soon..")
 
-# URL schemas to RequestHandler classes mapping
-application = tornado.web.Application([
-    (r"/", tornado.web.RedirectHandler,
-        {"url": '/static/index.html'}),
-    (r"/api/v1/info", PlatformInfoHandler),
-    (r"/api/v1/modules_list", ModulesListHandler),
-    (r"/api/v1/module/select", SelectModuleHandler),
-    (r"/api/v1/module", SCPICommandHandler),
-    (r"/admin", AdminConsoleHandler),
-    (r"/static/(.*)", tornado.web.StaticFileHandler,
-        {"path": options.static_path}),
-], **settings)
 
-if __name__ == '__main__':
-    parse_config_file(options.conf_path, final=False)
-    parse_command_line()  # command-line args override conf file options
+def main(application):
+    if __name__ == '__main__':
+        # parse command line twice to allow pass configuration file path
+        parse_command_line(final=False)
+        parse_config_file(options.conf_path, final=False)
+        # command-line args override conf file options
+        parse_command_line()
+    else:
+        try:
+            parse_config_file(options.conf_path, final=False)
+        except IOError:  # configuration file doesn't exist, use defaults
+            pass
 
     # start hw configuration monitoring. It requires configuration of hw ports
     # so it shall be done after parsing conf file
@@ -206,3 +234,21 @@ if __name__ == '__main__':
     tornado.ioloop.IOLoop.current().start()
 
     # TODO: add TCP socket handler to listen for HiSlip requests from VISA
+
+# URL schemas to RequestHandler classes mapping
+application = tornado.web.Application([
+    (r"/", tornado.web.RedirectHandler,
+        {"url": '/static/index.html'}),
+    (r"/api/v1/info", PlatformInfoHandler),
+    (r"/api/v1/module", ModuleInfoHandler),
+    (r"/api/v1/modules_list", ModulesListHandler),
+    (r"/api/v1/module_scpi_list", ListSCPICommandsHandler),
+    (r"/api/v1/module/select", SelectModuleHandler),
+    (r"/api/v1/module", SCPICommandHandler),
+    (r"/admin", AdminConsoleHandler),
+    (r"/static/(.*)", tornado.web.StaticFileHandler,
+        {"path": options.static_path}),
+], **settings)
+
+if __name__ == '__main__':
+    main(application)

@@ -5,8 +5,13 @@ import serial
 import threading
 
 from tornado import gen
+from tornado.options import options, define
 
 import mod_conf_patch
+
+
+define("serial_port_timeout", default=2)
+define("serial_port_baudrate", default=3000000)
 
 
 def lock(func):
@@ -73,9 +78,11 @@ class CDCModule(AbstractMeasurementModule):
     """
     def __init__(self, device):
         assert self.is_instance(device)
-        # TODO: replace magic numbers with configuration variables
-        self.serial = serial.Serial(device['DEVNAME'], 3000000, timeout=2)
-        # TODO: handle legacy modules with SYSTem:NAME?
+        self.serial = serial.Serial(
+            device['DEVNAME'],
+            options.serial_port_baudrate,
+            timeout=options.serial_port_timeout
+        )
         self.name = str(self.scpi("*IDN?")).rstrip()  # remove newline
         super(CDCModule, self).__init__(device)
 
@@ -102,6 +109,23 @@ class CDCModule(AbstractMeasurementModule):
             # TODO: handle errorrs
             pass
         return output
+
+
+class LegacyEasyPhiModule(CDCModule):
+    """ Legacy modules implemented for the first version of platform.
+    Main difference from "normal" CDC modules is name handling. In first
+    versions of firmware *IDN? request returned the same name for all modules.
+    Actual device name was returned by SYSTEM:NAME? command
+    """
+    def __init__(self, device):
+        super(LegacyEasyPhiModule, self).__init__(device)
+        self.name = str(self.scpi("SYSTEM:NAME?")).strip()
+
+    @staticmethod
+    def is_instance(device):
+        # TODO: check for MSC device on under the same parent in device tree
+        return CDCModule.is_instance(device) \
+            and device['ID_VENDOR'] == 'Easy-phi'
 
 
 class USBTMCModule(AbstractMeasurementModule):
@@ -136,6 +160,9 @@ class BroadcastModule(AbstractMeasurementModule):
     """
 
     name = "Broadcast dummy module"
+    platformwide_commands = [
+        # TODO: add commands requested by Raphael
+    ]
 
     def __init__(self, modules):
         self.modules = modules
@@ -148,16 +175,26 @@ class BroadcastModule(AbstractMeasurementModule):
                 valid SCPI command, it is your responsibility
         :return always returns "OK".
         """
+        # TODO: check if it is a platformwide command and handle it here
+
         for module in self.modules[1:]:
             if isinstance(module, AbstractMeasurementModule):
                 module.scpi(command)
         return "OK"
 
     def get_configuration(self):
-        return []
+        conf = super(BroadcastModule, self).get_configuration()
+        conf += [
+            # Platform-wide SCPI commands
+        ]
+        return conf
 
 # Please note that it is not conventional __all__ defined in __init__.py,
 # it contains list of classes instead of strings.
 # hwconf.py iterates these modules and calls static method is_instance()
 # to see if device is supported by the system
-__all__ = module_classes = [CDCModule, USBTMCModule]
+__all__ = module_classes = [
+    LegacyEasyPhiModule,
+    CDCModule,
+    USBTMCModule
+]
