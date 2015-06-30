@@ -9,6 +9,7 @@ from easy_phi import mod_conf_patch
 
 
 class BasicConfParserTest(unittest.TestCase):
+    conf = None  # keep link to NamedTempFile or it will be deleted
 
     def setUp(self):
         self.device = {
@@ -55,11 +56,13 @@ scpi = CONFigure:OUT1? (OR|AND|IN1|IN2)
         confpatch.flush()
 
         options.modules_conf_patches_path = confpatch.name
+        self.conf = confpatch
 
         mod_conf_patch._init_config()
 
     def test_init_config(self):
         self.assertEqual(mod_conf_patch.legacy_commands.strip(), "*IDN?")
+        self.assertIsInstance(mod_conf_patch.legacy_configs, list)
 
     def test_configuration_match(self):
         self.assertTrue(mod_conf_patch.configuration_match(
@@ -95,7 +98,7 @@ scpi = CONFigure:OUT1? (OR|AND|IN1|IN2)
         ))
 
     def test_get_configuration_patch(self):
-        self.assertEqual(
+        self.assertSequenceEqual(
             mod_conf_patch.get_configuration_patch(self.device),
             [
                 "*IDN?",
@@ -106,7 +109,7 @@ scpi = CONFigure:OUT1? (OR|AND|IN1|IN2)
             ]
         )
 
-        self.assertEqual(
+        self.assertSequenceEqual(
             mod_conf_patch.get_configuration_patch({}),
             ["*IDN?"]
         )

@@ -173,8 +173,10 @@ class BroadcastModule(AbstractMeasurementModule):
         """Send SCPI command to all connected modules
         :param command: string with SCPI command. It is not validated to be
                 valid SCPI command, it is your responsibility
-        :return always returns "OK".
+        :return always "OK".
         """
+        # TODO: check if it is a platformwide command and handle it here
+
         for module in self.modules[1:]:
             if isinstance(module, AbstractMeasurementModule):
                 module.scpi(command)

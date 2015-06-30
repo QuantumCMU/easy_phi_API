@@ -14,6 +14,7 @@ from tornado.options import parse_config_file, parse_command_line
 import hwconf
 import auth
 import utils
+import scpi2widgets
 from decorators import api_auth
 
 VERSION = "0.1"
@@ -103,7 +104,7 @@ class PlatformInfoHandler(APIHandler):
             'sw_version': VERSION,
             'hw_version': options.hw_version,
             'vendor': options.vendor,
-            'slots': len(hwconf.modules),
+            'slots': len(options.ports),
             'supported_api_versions': [1],
             'welcome_message': options.welcome_message
         })
@@ -117,7 +118,6 @@ class ModuleInfoHandler(ModuleHandler):
         device = self.module.device or {}
         self.write({
             'name': self.module.name,
-            'used_by': getattr(self.module, 'used_by', None),
             'sw_version': 'N/A',  # TODO: find out actual field
             'hw_version': device.get('ID_REVISION', 'N/A'),
             'vendor': device.get('ID_VENDOR', 'N/A'),
@@ -147,19 +147,17 @@ class SelectModuleHandler(ModuleHandler):
     """
     allow_broadcast = False
 
-    @api_auth
     def post(self):
         """ Set user lock on module to indicate it is used by someone """
         used_by = getattr(self.module, 'used_by', None)
         if used_by is not None:
             self.set_status(400)
-            return {'error': 'Module is used by {0}. If you '.format(used_by) +
-                             'need this module, you might force unlock it '
-                             'by issuing DELETE request first.'}
+            return {'error': "Module is used by {0}. If you need this module, "
+                             "you might force unlock it by issuing DELETE "
+                             "request first.".format(used_by)}
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
         self.write("OK")
 
-    @api_auth
     def delete(self):
         """ Force to remove any user lock from the module """
         used_by = getattr(self.module, 'used_by', None)
@@ -178,7 +176,7 @@ class SelectModuleHandler(ModuleHandler):
 
 
 class SCPICommandHandler(ModuleHandler):
-    """API functions related to a module in the specified rack slot"""
+    """API function to send SCPI command to module in the specified rack slot"""
     allow_broadcast = True
 
     def post(self):
@@ -189,8 +187,8 @@ class SCPICommandHandler(ModuleHandler):
         if used_by != auth.user_by_token(self.api_token):
             self.set_status(409)  # Conflict
             self.finish({
-                'error': 'Module is used by {0}. If you '.format(used_by) +
-                         'need this module, you might force unlock it first.'
+                'error': "Module is used by {0}. If you need this module, you "
+                         "need force unlock it first.".format(used_by)
             })
             return
 
@@ -203,12 +201,54 @@ class SCPICommandHandler(ModuleHandler):
         self.write(self.module.scpi(scpi_command))
 
 
+class ModuleUIHandler(ModuleHandler):
+    """API function to return small JS script to create module UI"""
+    allow_broadcast = True
+
+    def write(self, chunk):
+        """This handler needs slot parameter but does not need formatting
+        This method is restored to original tornado.web.RequestHandler.write()
+        """
+        return super(APIHandler, self).write(chunk)
+
+    def get(self):
+        container = self.get_argument('container', '')
+        if not container:
+            self.set_status(400)
+            self.finish({'errror': "Missing container parameter, jQuery"
+                         "of the DOM element to include module UI"})
+            return
+
+        supported_commands = self.module.get_configuration()
+        widgets = scpi2widgets.scpi2widgets(supported_commands, self.slot)
+
+        self.set_header('Content-type', 'application/javascript')
+        for widget in widgets:
+            # this wrapping into anonymous function is to not mess with global
+            # variables. To isolate syntax errors, in future it should be
+            # wrapped into eval() statement. It is not done now for debug
+            # purposes
+            # TODO: wrap into eval()
+            self.write("(function(slot, container, scpi){{\n"
+                       "\t{widget}\n"
+                       "}})({slot}, {container}, ep.scpi)\n".format(
+                           widget=widget, slot=self.slot, container=container))
+
+
 class AdminConsoleHandler(tornado.web.RequestHandler):
     """Placeholder for Admin Console web-page"""
 
     def get(self):
         self.write("Coming soon..")
 
+
+class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
+
+    def set_extra_headers(self, path):
+        if options.debug:
+            # parent method is empty, no need to call super
+            self.set_header(
+                'Cache-control', 'no-cache, no-store, must-revalidate')
 
 def main(application):
     if __name__ == '__main__':
@@ -243,10 +283,11 @@ application = tornado.web.Application([
     (r"/api/v1/module", ModuleInfoHandler),
     (r"/api/v1/modules_list", ModulesListHandler),
     (r"/api/v1/module_scpi_list", ListSCPICommandsHandler),
-    (r"/api/v1/module/select", SelectModuleHandler),
-    (r"/api/v1/module", SCPICommandHandler),
+    (r"/api/v1/lock_module", SelectModuleHandler),
+    (r"/api/v1/send_scpi", SCPICommandHandler),
+    (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
-    (r"/static/(.*)", tornado.web.StaticFileHandler,
+    (r"/static/(.*)", ContorlledCacheStaticFilesHandler,
         {"path": options.static_path}),
 ], **settings)
 
