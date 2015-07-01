@@ -26,7 +26,7 @@ class FormatConversionsTest(unittest.TestCase):
     def test_format_conversion_list(self):
         response_text, ctype = \
             utils.format_conversion(['one', 1, None], 'plain')
-        self.assertEqual(response_text, "one\n1\nNone")
+        self.assertMultiLineEqual(response_text, "one\n1\nNone")
 
         response_text, ctype = \
             utils.format_conversion(['one', 1, None], 'xml')
