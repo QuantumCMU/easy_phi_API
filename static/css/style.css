@@ -45,10 +45,14 @@ main {
     margin:auto;
     width:80%;
     min-width:500px;
+    max-width:800px;
     height: 100%;
     padding: 5px;
     text-align: left;
 }
+/*-------------------------------------------
+        MODULE HEADER
+-------------------------------------------*/
 #modules_list header {
     font-size:larger;
     font-weight: bold;
@@ -57,17 +61,52 @@ main {
     background-color: darkgrey;
     border-radius: 0.5em;
     padding: 1em;
-    margin:0.1em;
+    margin:0.1em 0;
     position:relative; /* to allow absolute positioning of lock UI elements */
     left:0;
 }
 #modules_list header.active {
     background-color: #3049ab;
+    cursor:pointer;
+}
+#modules_list header.open {
+    border-radius:0.5em 0.5em 0 0;
 }
 
-#modules_list details {
+.module_lock {
+    position:absolute;
+    right:1em;
+    background-image:none;
+    font-size:smaller;
+}
+.module_lock:not(:empty):before {
+    content:"Locked by: "
+}
+#modules_list .module_lock.locked {
+    /* this selector is more specific so it will override rules of .module_lock*/
+}
+/*-------------------------------------------
+        MODULE CONTROL PANEL
+-------------------------------------------*/
+.control_panel {
     padding: 1em;
     display:none;
+    border: 1px solid black;
+    border-top:none;
+    border-radius: 0 0 0.5em 0.5em;
+    margin:-1em 0 0;
+    text-align:right;
+}
+.open + .control_panel {
+    display:block;
+}
+/*=============WIDGET=======================*/
+.widget {
+    display:block;
+    padding:0.2em;
+}
+.widget > input, .widget > button {
+    margin:0.2em;
 }
 
 footer {
@@ -81,32 +120,3 @@ footer {
     padding: 0 10px;
     font-size: smaller;
 }
-/*
-a {
-    background: #66FFB2;
-    width: 35px;
-    height: 10px;
-    font-size: xx-small;
-    text-align:center;
-    cursor: pointer;
-    border-top: solid 2px #eaeaea;
-    border-left: solid 2px #eaeaea;
-    border-bottom: solid 2px #777;
-    border-right: solid 2px #777;
-    padding: 5px 5px;
-    float:right;
-    }
-
-a.down {
-    background: #FF3333;
-    width: 35px;
-    height: 10px;
-    font-size: xx-small;
-    text-align:center;
-    border-top: solid 2px #777;
-    border-left: solid 2px #777;
-    border-bottom:solid 2px  #eaeaea;
-    border-right: solid 2px #eaeaea;
-    float:right;
-}
-*/
