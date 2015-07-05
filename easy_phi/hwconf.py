@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""This module provides functions to obtain hardware configuration and keep it up to date.
-
+"""This module provides functions to obtain hardware configuration and keep it
+up to date.
 """
 
 import pyudev
@@ -36,8 +36,8 @@ def get_rack_slot(device):
     global modules  # Ugly, I know. Let me know if there is a better way
 
     # first, check if device is already represented in modules
-    # pyudev.Device does not guarantee uniqueness, so we have to ensure if device isn't
-    # already associated with some slot
+    # pyudev.Device does not guarantee uniqueness, so we have to ensure if
+    # device isn't already associated with some slot
     for i, module in enumerate(modules):
         if module is not None and module.device == device:
             return i
@@ -46,10 +46,10 @@ def get_rack_slot(device):
     if device['ID_PATH'] in options.ports:
         return options.ports.index(device['ID_PATH']) + 1
 
-    # if device is neither in modules list nor port is associated with rack slot,
-    # assign to first free slot. It might happen in standalone mode, or if a
-    # supported device connected directly to a board inside rack, i.e. it is not
-    # not a typical scenario for commercially distributed systems.
+    # if device is neither in modules list nor port is associated with rack
+    # slot, assign to first free slot. It might happen in standalone mode, or
+    # if a supported device connected directly to a board inside rack, i.e.
+    # it is not not a typical scenario for commercially distributed systems.
     for i in range(len(options.ports) + 1, len(modules)):
         if modules[i] is None:
             return i
@@ -73,7 +73,8 @@ def hwconf_update():
 
 def hwconf_listener(action, device):
     """ udev events listener to update modules list dynamically
-    This method shall not be used directly. It is only for purpose of integration with pyudev
+    This method shall not be used directly. It is only for purpose of
+    integration with pyudev
     """
 
     module_class = None
@@ -98,8 +99,8 @@ monitor = pyudev.Monitor.from_netlink(_context)
 observer = pyudev.MonitorObserver(monitor, hwconf_listener)
 
 
-# update hardware configuration on start
 def start():
+    """ update hardware configuration on start and install udev listener """
     global modules
     for port in options.ports:
         modules += [None]

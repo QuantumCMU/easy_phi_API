@@ -16,22 +16,40 @@ def format_conversion(chunk, fmt, debug=False):
     elif fmt == 'plain':  # Plain text
         ctype = 'text/plain'
         if isinstance(chunk, dict):
-            chunk = "\n".join((u"{0}: {1}".format(*item)
-                               for item in chunk.items()))
+            chunk = "\n".join((u"{0}: {1}".format(key, chunk[key])
+                               for key in sorted(chunk.keys())))
         elif isinstance(chunk, list):
             chunk = "\n".join(map(unicode, chunk))
         else:
             chunk = unicode(chunk)
-    elif fmt == 'json':
-        json_kwargs = {
-            'sort_keys': True,
-            'indent': 4,
-            'separators': (',', ': ')
-        } if debug else {}
 
+    elif fmt == 'json':
         ctype = 'application/json'
-        chunk = json.dumps(chunk, **json_kwargs)
+        chunk = json.dumps(chunk, sort_keys=debug, indent=debug*4 or None,
+                           separators=(', ', ': '))
     else:
         raise ValueError("fmt is supposed to be xml, plain or json")
 
     return chunk, ctype
+
+
+def scpi_equivalent(command, canonical):
+    command = command.strip().split(" ", 1)[0]
+    canonical = canonical.strip().split(" ", 1)[0]
+
+    # i is index of current char in command, j is index for canonical form
+    i = j = 0
+    # TODO: actually implement this method
+    # TODO: add support for default command
+    while True:
+
+        return False
+
+    return True
+
+def parse_scpi_command(raw_str):
+    chunks = raw_str.split(" ", 2)
+    cmd = chunks[0]
+    arg = "" or len(chunks) > 1 and chunks[1]
+    remainder = "" or len(chunks) > 2 and chunks
+    return cmd, arg, remainder

@@ -39,12 +39,11 @@ class FormatConversionsTest(unittest.TestCase):
         self.assertEqual('["one", 1, null]', response_text)
 
     def test_format_conversion_dict(self):
-        # Since dict is not ordered, in this test we have to test
+        # Since dict is not ordered (except plain text), we have to test
         # both possible orders of keys
         response_text, ctype = \
             utils.format_conversion({'one': 1, 2: None}, 'plain')
-        self.assertTrue("one: 1\n2: None" == response_text or
-                        "2: None\none: 1" == response_text)
+        self.assertEqual("2: None\none: 1", response_text)
 
         # dicttoxml does not support integer indices
         response_text, ctype = \
