@@ -34,6 +34,7 @@ def format_conversion(chunk, fmt, debug=False):
 
 
 def scpi_equivalent(command, canonical):
+    # TODO: add docstring, documentation, unittest
     command = command.strip().split(" ", 1)[0]
     canonical = canonical.strip().split(" ", 1)[0]
 
@@ -42,12 +43,14 @@ def scpi_equivalent(command, canonical):
     # TODO: actually implement this method
     # TODO: add support for default command
     while True:
+        if command == canonical:
+            return True
+        break
 
-        return False
-
-    return True
+    return False
 
 def parse_scpi_command(raw_str):
+    # TODO: add docstring, documentation, unittest
     chunks = raw_str.split(" ", 2)
     cmd = chunks[0]
     arg = "" or len(chunks) > 1 and chunks[1]

@@ -28,6 +28,7 @@ define("conf_path", default="/etc/easy_phi.conf")
 define("static_path",
        default=os.path.join(os.path.dirname(__file__), '..', 'static'))
 define("server_port", default=8000)
+define("sw_version", default=VERSION)
 define("hw_version", default='N/A')
 define("vendor", type=str)
 define("welcome_message", default="")
@@ -114,7 +115,7 @@ class PlatformInfoHandler(APIHandler):
     """ Return basic info about the system """
     def get(self):
         self.write({
-            'sw_version': VERSION,
+            'sw_version': options.sw_version,
             'hw_version': options.hw_version,
             'vendor': options.vendor,
             'slots': len(options.ports),
