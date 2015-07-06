@@ -1,19 +1,31 @@
 # -*- coding: utf-8 -*-
-import json
+import unittest
+import time
 
 import tornado.testing
 
 from easy_phi import app
 
+class Timer:
+    def __enter__(self):
+        self.start = time.clock()
+        return self
 
-class TestRegressionSCPIHandler(tornado.testing.AsyncHTTPTestCase):
+    def __exit__(self, *args):
+        self.end = time.clock()
+        self.interval = self.end - self.start
+
+class RegressionTest(tornado.testing.AsyncHTTPTestCase):
+    api_url = '/api/v1/send_scpi?format=json'
 
     def get_app(self):
         return app.application
 
-    def TestRegressionSCPIHandler(self):
-        response = self.fetch('/api/v1/module?slot=3{*IDN?}’)
-
-	self.failIf(response.error)
-        self.assertEqual(response.code, 302)
-
+    def test_timing_send_scpi(self):
+        i = 0
+        with Timer() as t:
+            while (i < 100):
+                # test on Broadcast pseudo module
+                response = self.fetch(self.api_url, method='POST', body='*IDN?')
+                i = i + 1
+        print('Sending 100 SCPI commands took %.03f sec.' % t.interval)
