@@ -41,19 +41,21 @@ def scpi2widgets(configuration):
             if not valid_section(section):
                 logging.warning("Section {0} does not define "
                                 "scpi or widget attribute".format(section))
-                pass
 
     module_conf = set(configuration)
     widgets = []
 
-    # ConfigParser orders section backwards, so have to reverse again
-    for section in reversed(_widgets_storage.sections()):
+    for section in _widgets_storage.sections():
         if not valid_section:
             continue
         widget_conf = _widgets_storage.get(section, 'scpi').split("\n")
         if module_conf.issuperset(widget_conf):
             widget = _widgets_storage.get(section, 'widget')
-            widgets.append(widget)
+            if widget:  # commands in ignore list have empty widgets
+                widgets.append(widget)
             module_conf = module_conf.difference(widget_conf)
+
+    if 'default_widget' in _widgets_storage.defaults():
+        widgets.append(_widgets_storage.defaults()['default_widget'])
 
     return widgets

@@ -8,7 +8,7 @@ from tornado import gen
 from tornado.options import options, define
 
 import mod_conf_patch
-
+import utils
 
 define("serial_port_timeout", default=2)
 define("serial_port_baudrate", default=3000000)
@@ -32,6 +32,20 @@ def lock(func):
     return wrapper
 
 
+class AbsractModuleMetaclass(type):
+    def __new__(mcs, name, bases, dct):
+        mod_class = super(AbsractModuleMetaclass, mcs).__new__(
+            mcs, name, bases, dct)
+        if hasattr(mod_class, 'scpi') and mod_class.scpi == mcs.scpi:
+            setattr(mod_class, 'scpi', lock(mod_class.scpi))
+        return mod_class
+
+# will be applied to all classes in this module
+# it is not ok to do it in AbstractMeasurementModule because @lock
+# will be applied by all classes in inheritance chain
+__metaclass__ = AbsractModuleMetaclass
+
+
 class AbstractMeasurementModule(object):
     """ Abstract class for representation of test measurement equipment
     It should not be used directly but rather serve as a reference for
@@ -52,7 +66,6 @@ class AbstractMeasurementModule(object):
         """
         return False
 
-    @lock
     def scpi(self, command):
         """Send SCPI command to device"""
         return "OK"
@@ -94,7 +107,6 @@ class CDCModule(AbstractMeasurementModule):
         """
         return device.get('ID_USB_DRIVER') == 'cdc_acm' and 'DEVNAME' in device
 
-    @lock
     def scpi(self, command):
         """Send SCPI command to the device
         :param command: string with SCPI command. It is not validated to be
@@ -108,7 +120,8 @@ class CDCModule(AbstractMeasurementModule):
         if output.startswith('**'):
             # TODO: handle errorrs
             pass
-        return output
+        # some equipment/commands leave newline \r symbol at the end
+        return output.strip()
 
 
 class LegacyEasyPhiModule(CDCModule):
@@ -123,7 +136,6 @@ class LegacyEasyPhiModule(CDCModule):
 
     @staticmethod
     def is_instance(device):
-        # TODO: check for MSC device on under the same parent in device tree
         return CDCModule.is_instance(device) \
             and device['ID_VENDOR'] == 'Easy-phi'
 
@@ -148,7 +160,6 @@ class USBTMCModule(AbstractMeasurementModule):
         # TODO: check actual usb-tmc device properties and update
         return device.get('ID_USB_DRIVER') == 'usbtmc'
 
-    @lock
     @gen.coroutine
     def scpi(self, command):
         # TODO: write actual implementation
@@ -160,33 +171,39 @@ class BroadcastModule(AbstractMeasurementModule):
     """
 
     name = "Broadcast dummy module"
-    platformwide_commands = [
-        # TODO: add commands requested by Raphael
-    ]
+
+    def platformwide_commands(self):
+        return [
+            ("RAck:Size?", lambda: len(options.ports)),
+            ("SYSTem:NUMber:SLots?", lambda: len(self.modules)),
+            ("SYSTem:VERSion?", lambda: options.sw_version),
+        ]
 
     def __init__(self, modules):
         self.modules = modules
         super(BroadcastModule, self).__init__(None)
 
-    @lock
     def scpi(self, command):
         """Send SCPI command to all connected modules
         :param command: string with SCPI command. It is not validated to be
                 valid SCPI command, it is your responsibility
         :return always "OK".
         """
-        # TODO: check if it is a platformwide command and handle it here
+        for canonical, callback in self.platformwide_commands():
+            if utils.scpi_equivalent(command, canonical):
+                return callback()
 
-        for module in self.modules[1:]:
+        response = None
+        for module in reversed(self.modules[1:]):
             if isinstance(module, AbstractMeasurementModule):
-                module.scpi(command)
-        return "OK"
+                response = module.scpi(command)
+                print response
+
+        return response
 
     def get_configuration(self):
         conf = super(BroadcastModule, self).get_configuration()
-        conf += [
-            # Platform-wide SCPI commands
-        ]
+        conf += [command for command, callback in self.platformwide_commands()]
         return conf
 
 # Please note that it is not conventional __all__ defined in __init__.py,

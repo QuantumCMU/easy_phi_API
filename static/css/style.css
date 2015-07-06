@@ -1,48 +1,6 @@
-html, body {
-    height: 100%;
-    background: #DDDAD6;
-}
-div.header_container {
-    position: relative;
-    font-size:large;
-    font-weight: bold;
-    margin-left: 10px;
-    margin-right: 10px;
-    margin-bottom: 15px;
-    width:95%;
-    padding-right: 10px;
-    height: 10%;
-}
-div.logo {
-    position: absolute;
-    bottom: 0px;
-    width: 10%;
-    height: 100%;
-}
-div.header_text {
-    position:absolute;
-    bottom: 0px;
-    left: 10%;
-    width: 90%;
-    padding-bottom: 10px;
-    border-bottom: 2px solid black;
-}
-
-.left_container {
-    position:relative;
-    background: #A6D8DE;
-    width:30%;
-    height: 80%;
-    float:left;
-    box-shadow: 10px 10px 5px #888888;
-}
-.right_container {
-    position:relative;
-    width:70%;
-    height: 80%;
-    float:left;
-}
+/* TODO: copy reset here */
 #platform_info_container {
+    display:none;           /* FOR DEBUG PURPOSES */
     margin: 5px;
     padding: 5px;
     width:90%;
@@ -56,6 +14,7 @@ div.header_text {
     line-height: 200%;
 }
 #console_container {
+    display:none;           /* FOR DEBUG PURPOSES */
     position: absolute;
     bottom: 0;
     left: 0;
@@ -73,59 +32,91 @@ div.header_text {
     border: 1px solid black;
     resize:none;
 }
-
-#modules_list_container {
+/*=========================================
+*        MAIN CONTENT CONTAINER
+*=========================================*/
+main {
+    text-align: center;
+}
+/*=========================================
+*        MODULE LIST CONTAINER
+*=========================================*/
+#modules_list {
     margin:auto;
     width:80%;
+    min-width:500px;
+    max-width:800px;
     height: 100%;
     padding: 5px;
+    text-align: left;
+}
+/*-------------------------------------------
+        MODULE HEADER
+-------------------------------------------*/
+#modules_list header {
+    font-size:larger;
+    font-weight: bold;
+    overflow:hidden; /* long module names */
+    color:white;
+    background-color: darkgrey;
+    border-radius: 0.5em;
+    padding: 1em;
+    margin:0.1em 0;
+    position:relative; /* to allow absolute positioning of lock UI elements */
+    left:0;
+}
+#modules_list header.active {
+    background-color: #3049ab;
+    cursor:pointer;
+}
+#modules_list header.open {
+    border-radius:0.5em 0.5em 0 0;
+}
+
+.module_lock {
+    position:absolute;
+    right:1em;
+    background-image:none;
+    font-size:smaller;
+}
+.module_lock:not(:empty):before {
+    content:"Locked by: "
+}
+#modules_list .module_lock.locked {
+    /* this selector is more specific so it will override rules of .module_lock*/
+}
+/*-------------------------------------------
+        MODULE CONTROL PANEL
+-------------------------------------------*/
+.control_panel {
+    padding: 1em;
+    display:none;
+    border: 1px solid black;
+    border-top:none;
+    border-radius: 0 0 0.5em 0.5em;
+    margin:-1em 0 0;
+    text-align:right;
+}
+.open + .control_panel {
+    display:block;
+}
+/*=============WIDGET=======================*/
+.widget {
+    display:block;
+    padding:0.2em;
+}
+.widget > input, .widget > button {
+    margin:0.2em;
 }
 
 footer {
-    clear:both;
     position: absolute;
     text-align: right;
-    bottom:0px;
+    bottom:0;
     height: 5%;
-    margin-left: 10px;
-    margin-right: 10px;
+    margin: 0 10px;
     border-top: 2px solid black;
     width:95%;
-    padding-right: 10px;
+    padding: 0 10px;
+    font-size: smaller;
 }
-a {
-    size: xx-small;
-    background: #66FFB2;
-    width: 35px;
-    height: 10px;
-    font-size: xx-small;
-    text-align:center;
-    cursor: pointer;
-    border-top: solid 2px #eaeaea;
-    border-left: solid 2px #eaeaea;
-    border-bottom: solid 2px #777;
-    border-right: solid 2px #777;
-    padding: 5px 5px;
-    float:right;
-    }
-
-a.down {
-    size: xx-small;
-    background: #FF3333;
-    width: 35px;
-    height: 10px;
-    font-size: xx-small;
-    text-align:center;
-    border-top: solid 2px #777;
-    border-left: solid 2px #777;
-    border-bottom:solid 2px  #eaeaea;
-    border-right: solid 2px #eaeaea;
-    float:right;
-}
-
-
-
-
-
-
-

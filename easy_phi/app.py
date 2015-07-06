@@ -4,6 +4,8 @@
 This file contains Web Application
 """
 import os
+import json
+import time
 
 import tornado.ioloop
 import tornado.httpserver
@@ -38,6 +40,11 @@ define("default_format", default='json')
 class APIHandler(tornado.web.RequestHandler):
     """ Tornado handlers subclass to format response to xml/json/plain """
 
+    def data_received(self, chunk):
+        # to get rid of annoying pylint message about not implemented
+        # abstract method
+        pass
+
     def write(self, chunk):
         fmt = self.get_argument('format', options.default_format)
         if fmt not in ('xml', 'json', 'plain'):
@@ -50,6 +57,22 @@ class APIHandler(tornado.web.RequestHandler):
         self.set_header('Content-Type', ctype)
 
         super(APIHandler, self).write(chunk)
+
+    def get(self):
+        self.set_status(405)
+        self.write({'errror': "This method does not accept GET requests"})
+
+    def post(self):
+        self.set_status(405)
+        self.write({'errror': "This method does not accept POST requests"})
+
+    def put(self):
+        self.set_status(405)
+        self.write({'errror': "This method does not accept PUT requests"})
+
+    def delete(self):
+        self.set_status(405)
+        self.write({'errror': "This method does not accept DELETE requests"})
 
 
 class ModuleHandler(APIHandler):
@@ -213,18 +236,24 @@ class ModuleUIHandler(ModuleHandler):
         widgets = scpi2widgets.scpi2widgets(supported_commands)
 
         self.set_header('Content-type', 'application/javascript')
+
+        temp_id = int(time.time()*1000)
         for widget in widgets:
+            temp_id += 1
+            self.write("""$("{container}").append("<section id='{temp_id}' """
+                       """class='widget'></section>");\n""".format(
+                           container=container, temp_id=temp_id))
             # this wrapping into anonymous function is to not mess with global
-            # variables. To isolate syntax errors, in future it should be
-            # wrapped into eval() statement. It is not done now for debug
-            # purposes
-            # TODO: wrap into eval()
+            # variables. To isolate syntax errors, in future it is wrapped into
+            # eval() statement.
             self.write(
                 "(function(slot, container, scpi){{\n"
-                "\t{widget}\n"
-                "}})({slot}, '{container}', function(scpi, callback){{\n"
-                "    ep.scpi({slot}, scpi, callback);\n}})\n".format(
-                    widget=widget, slot=self.slot, container=container
+                "\teval({widget});\n"
+                "}})({slot}, $('#{container_id}'), function(scpi, callback){{\n"
+                "    ep.scpi({slot}, scpi, callback);\n}});\n".format(
+                    widget=json.dumps(widget),
+                    slot=self.slot,
+                    container_id=temp_id
                 )
             )
 
@@ -237,12 +266,24 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
 
 
 class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
+    """Debug handler to serve static files without caching"""
 
     def set_extra_headers(self, path):
         if options.debug:
             # parent method is empty, no need to call super
             self.set_header(
                 'Cache-control', 'no-cache, no-store, must-revalidate')
+
+
+class PageNotFoundHandler(tornado.web.RequestHandler):
+    """Custom 404 page"""
+
+    def get(self):
+        self.set_status(404)
+        # TODO: add nice template with clear message
+        self.write("Page not found")
+
+    post = put = delete = get
 
 
 def main(application):
@@ -252,7 +293,8 @@ def main(application):
 
     # we need HTTP server to serve SSL requests.
     ssl_ctx = None
-    http_server = tornado.httpserver.HTTPServer(application, ssl_options=ssl_ctx)
+    http_server = tornado.httpserver.HTTPServer(
+        application, ssl_options=ssl_ctx)
     http_server.listen(options.server_port)
     tornado.ioloop.IOLoop.current().start()
 
@@ -272,6 +314,7 @@ else:
 
 settings = {
     'debug': options.debug,
+    'default_handler_class': PageNotFoundHandler,
 }
 
 # URL schemas to RequestHandler classes mapping
