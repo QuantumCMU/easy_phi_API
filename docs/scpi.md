@@ -1,17 +1,18 @@
 
 
-SCPI = SCPI_COMMAND | SCPI_GET | SCPI_SET
-SCPI_COMMAND = KEYWORD[:SCPI_COMMAND]
-SCPI_GET = SCPI_COMMAND?
-SCPI_PUT = SCPI_COMMAND PARAMS
-KEYWORD = (A-Z)+(a-z)*
-PARAMS = PARAM[,PARAM]+
-PARAM = (A-Z|a-z|0-9| )+
+    SCPI = SCPI_COMMAND | SCPI_GET | SCPI_SET
+    SCPI_COMMAND = KEYWORD[:SCPI_COMMAND]
+    SCPI_GET = SCPI_COMMAND?
+    SCPI_PUT = SCPI_COMMAND PARAMS
+    KEYWORD = (A-Z)+(a-z)*
+    PARAMS = PARAM[,PARAM]+
+    PARAM = (A-Z|a-z|0-9| )+
 
 Examples:
-CALibration:BEGin
-SYSTem:HELP?
-FREQuency:CW 200000
+
+    CALibration:BEGin
+    SYSTem:HELP?
+    FREQuency:CW 200000
 
 Uppercase and lowercase parts of the chunk are only used for documenting
 available commands, in fact they might be all lowercase, uppsercase or mixed.
