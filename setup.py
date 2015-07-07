@@ -1,4 +1,7 @@
-from distutils.core import setup
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from setuptools import setup
 
 from easy_phi import VERSION, LICENSE, PROJECT
 
@@ -29,10 +32,15 @@ setup(
         "Topic :: Scientific/Engineering :: "
         "Interface Engine/Protocol Translator",
     ),
+    entry_points = {
+        'console_scripts': ['easy_phi = easy_phi.app:main']
+    },
     data_files=[
         ('/etc', ['scripts/easy_phi.conf']),
         ('/etc/udev/rules.d', ['scripts/99-easy_phi-modules.rules']),
-        ('/etc/easy_phi', ['modules_conf_patches.conf']),
+        ('/etc/easy_phi', ['scripts/modules_conf_patches.conf',
+                           'scripts/widgets.conf']),
     ],
     requires=reqs,
+    # TODO: add unit tests
 )
