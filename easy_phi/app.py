@@ -286,20 +286,6 @@ class PageNotFoundHandler(tornado.web.RequestHandler):
 
     post = put = delete = get
 
-
-def main(application):
-    # start hw configuration monitoring. It requires configuration of hw ports
-    # so it shall be done after parsing conf file
-
-    # we need HTTP server to serve SSL requests.
-    ssl_ctx = None
-    http_server = tornado.httpserver.HTTPServer(
-        application, ssl_options=ssl_ctx)
-    http_server.listen(options.server_port)
-    tornado.ioloop.IOLoop.current().start()
-
-    # TODO: add TCP socket handler to listen for HiSlip requests from VISA
-
 if __name__ == '__main__':
     # parse command line twice to allow pass configuration file path
     parse_command_line(final=False)
@@ -335,6 +321,19 @@ application = tornado.web.Application([
     (r"/static/(.*)", ContorlledCacheStaticFilesHandler,
         {"path": options.static_path}),
 ], **settings)
+
+def main(application=application):
+    # start hw configuration monitoring. It requires configuration of hw ports
+    # so it shall be done after parsing conf file
+
+    # we need HTTP server to serve SSL requests.
+    ssl_ctx = None
+    http_server = tornado.httpserver.HTTPServer(
+        application, ssl_options=ssl_ctx)
+    http_server.listen(options.server_port)
+    tornado.ioloop.IOLoop.current().start()
+
+    # TODO: add TCP socket handler to listen for HiSlip requests from VISA
 
 if __name__ == '__main__':
     main(application)
