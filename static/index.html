@@ -14,29 +14,28 @@
     <!-- api key, login/logout and links to Admin functions go here -->
 </header>
 
-<aside>
-    <div id="platform_info_container">
+<aside id="platform_info_container">
     Platform info:
-        <div id="platform_info">
-            <div>Vendor: <span id="txt_vendor">Loading</span></div>
-            <div>Software version: <span id="txt_sw_version">Loading</span></div>
-            <div>Hardware version: <span id="txt_hw_version">Loading</span></div>
-            <div>Supported API versions: <span id="txt_api_versions">Loading</span></div>
-            <div>Number of slots: <span id="txt_number_of_slots">Loading</span></div>
-            <div>Number of modules: <span id="txt_number_of_modules">Loading</span></div>
-            <div>Modules in use: <span id="txt_modules_in_use">Loading</span></div>
-        </div>
-     </div>
-    <div id="console_container">
-        <label for="log_console">Console output:</label>
-        <textarea rows="4" cols="50" id="log_console" readonly></textarea>
-        <button id="btn_clear">Clear</button>
-    </div>
+    <ul id="platform_info">
+        <li>Vendor: <span id="platform_info_vendor">Loading</span></li>
+        <li>Software version: <span id="platform_info_sw_version">Loading</span></li>
+        <li>Hardware version: <span id="platform_info_hw_version">Loading</span></li>
+        <!--li>Supported API versions: <span id="platform_info_versions">Loading</span></li-->
+        <li>Number of slots: <span id="platform_info_slots">0</span></li>
+        <li>Number of modules: <span id="platform_info_modules">0</span></li>
+        <li>Modules in use: <span id="platform_info_modules_in_use">0</span></li>
+    </ul>
 </aside>
 
 <main>
-    <div id="modules_list" class="ui-accordion">
+    <div id="modules_list">
         <noscript>This page does not work without JavaScript.</noscript>
+    </div>
+
+    <div id="console_container">
+        <label for="console_log">System log:</label>
+        <button id="console_clear_btn">Clear</button>
+        <div id="console_log"></div>
     </div>
 </main>
 

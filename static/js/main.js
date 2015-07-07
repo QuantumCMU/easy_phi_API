@@ -2,36 +2,48 @@
 
 $(document).ready(function () {
     ep.init();
+    $("#console_clear_btn").click(function(){
+        $("#console_log").empty();
+    })
 });
 
 var ep = window['ep'] || {
     base_url: '',
     slots: 0,
+    info: null,
     _username: 'Somebody', // User name from auth, updated at init()
+    _username_alias: 'You', // Friendly name to address user in GUI.
+                            // It is here for localization purposes
     _api_token: '', // api_token to be used. TODO: figure out how to transfer it
     _empty_slot_str: "Empty slot", // moved out of func for localization purposes
     _broadcast_slot: 0,
     _ws: null, //WebSocket object
 
     init: function(base_url) {
-        // set global ajax error handler
-        /*
-        $(document).ajaxError(function(event, jqxhr, settings, error) {
-           alert("Something went wrong, and we're working hard to fix " +
-               "the problem (not really). Meanwhile, could you please tell "+
-               "your technician that you've got an error: \n" +
-               "API call to url "+settings.url+" failed with error: " + error
-           )
-        }); */
+        // TODO: set global ajax error handler
         if (base_url == null) {
             base_url = window.location.protocol + "//" +window.location.host;
         }
 
         ep.base_url = base_url;
 
+        setInterval(function(){
+            // -1 is for broadcast module
+            $("#platform_info_modules").text($("header.active").length-1);
+        }, 1000);
+
+        setInterval(function(){
+            $("#platform_info_modules_in_use").text(
+                $(".module_lock:not(:empty)").length);
+        }, 1000);
+
         //get Platform info
         $.get(ep.base_url + "/api/v1/info?format=json", function(platform_info){
             ep.slots = platform_info.slots;
+            $("#platform_info_vendor").text(platform_info['vendor']);
+            $("#platform_info_sw_version").text(platform_info['sw_version']);
+            $("#platform_info_hw_version").text(platform_info['hw_version']);
+            $("#platform_info_slots").text(platform_info['slots']);
             ep.updateModuleList(); // manually update list of modules
 
             //Init WebSocket session
@@ -47,12 +59,13 @@ var ep = window['ep'] || {
     },
 
     scpi: function(slot_id, scpi_command, callback) {
+        ep.log("Slot "+slot_id+": Request: " + scpi_command);
         $.post(
             ep.base_url + '/api/v1/send_scpi?format=json&slot='+slot_id,
             scpi_command,
             function(scpi_response) {
                 if (callback != null) callback(scpi_response);
-                ep.log(slot_id, scpi_command, scpi_response);
+                ep.log("Slot "+slot_id+": Response: " + scpi_response);
             }
         );
     },
@@ -70,15 +83,56 @@ var ep = window['ep'] || {
             "<span class='module_name' id='module_name_"+slot_id+"'>"+
             (module_name||ep._empty_slot_str)+"</span>" +
             // module lock
-            "<span class='module_lock' id='modle_name_"+slot_id+"'>You</span>"+
+            "<span class='module_lock' id='modle_name_"+slot_id+"'></span>"+
             // rest of header
             "</header>" +
             // control panel
             "<section class='control_panel' id='module_control_panel_"+slot_id+
             "'></section>");
-        $("#module_header_"+slot_id).click(function(){
+        $("#module_header_"+slot_id).click(function() {
             if (!$(this).hasClass("active")) return;
-            $(this).toggleClass("open");
+            // if module is being opened, check if is used by somebody
+
+            if (slot_id == ep._broadcast_slot) { // broadcast module is exempt from lock rules
+                $(this).toggleClass("open");
+                return;
+            }
+            var lock_container = $(this).find(".module_lock");
+
+            // if module is being closed, just release lock
+            if ($(this).hasClass("open")) {
+                $.ajax({
+                    url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id,
+                    type: 'DELETE',
+                });
+                lock_container.empty();
+                $(this).toggleClass("open", false);
+                return;
+            }
+
+            // container is being opened
+            var locked_by = lock_container.text();
+            if (locked_by && locked_by != ep._username &&
+                locked_by != ep._username_alias &&
+                confirm("This module is used by " + locked_by + ". Do you " +
+                        "want to force unlock it?")) {
+                // used by somebody - try force unlock
+                if ($.ajax({type: 'DELETE', async: false,
+                        url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id
+                        }).responseText != "OK") {
+                    alert("Failed to unlock module. Please try again");
+                    return;
+                }
+                // mark module as used
+                if ($.ajax({ type: 'POST', async: false,
+                        url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id
+                        }).responseText != "OK") {
+                    alert("Failed to acquire module lock. Please unlock and try again");
+                    return;
+                }
+            }
+            lock_container.text(ep._username_alias);
+            $(this).toggleClass("open", true);
         });
     },
 
@@ -159,24 +213,16 @@ var ep = window['ep'] || {
         // TODO: add GUI
     },
 
-    log: function(slot_id, scpi_command, scpi_response) {
-        if (scpi_response == null) { // log(scpi_command, scpi_response)
-            scpi_response = scpi_command;
-            scpi_command = slot_id;
-            slot_id = null;
-            if (scpi_response == null) { // log(scpi_response)
-                scpi_response = scpi_command;
-                scpi_command = null;
-            }
-        }
-        alert(scpi_response);
-    },
-
     parseWSMessage: function (message) {
         console.log("Message from ws: " + message);
 
         var msg_type = message['msg_type'];
 
         console.log("Message type: " + msg_type);
+    },
+
+    log: function(message) {
+        // HTML is welcome
+        $("#console_log").append(message+"<br />");
     }
 };

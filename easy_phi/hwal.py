@@ -197,7 +197,6 @@ class BroadcastModule(AbstractMeasurementModule):
         for module in reversed(self.modules[1:]):
             if isinstance(module, AbstractMeasurementModule):
                 response = module.scpi(command)
-                print response
 
         return response
 

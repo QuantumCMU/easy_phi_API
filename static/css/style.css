@@ -1,12 +1,13 @@
 /* TODO: copy reset here */
 #platform_info_container {
-    display:none;           /* FOR DEBUG PURPOSES */
+    position:absolute;
+    top:0;left:0;
+    width:180px;
     margin: 5px;
     padding: 5px;
-    width:90%;
-    height: 40%;
 }
 #platform_info {
+    font-size:small;
     background: white;
     margin-top: 5px;
     border: 1px solid black;
@@ -14,19 +15,24 @@
     line-height: 200%;
 }
 #console_container {
-    display:none;           /* FOR DEBUG PURPOSES */
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width:90%;
-    margin: 5px;
+    /* keep rest up to date with module container */
+    margin:auto;
+    width:80%;
+    min-width:500px;
+    max-width:800px;
     padding: 5px;
-    height: 40%;
+    text-align: left;
 }
-#log_console {
+#console_clear_btn {
+    float:right;
+}
+#console_log {
+    font-family:"Courier New", courier, monospace;
+    font-size:smaller;
     background: white;
-    margin-top: 5px;
-    height: 80%;
+    margin-top: 0.5em;
+    box-sizing:border-box;
+    height: 10em;
     width: 100%;
     overflow: auto;
     border: 1px solid black;
@@ -72,15 +78,21 @@ main {
 #modules_list header.open {
     border-radius:0.5em 0.5em 0 0;
 }
-
+/*================ MODULE LOCK =============*/
 .module_lock {
     position:absolute;
     right:1em;
-    background-image:none;
+    padding-right:50px; /*lock image is 40px wide*/
     font-size:smaller;
+    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAYAAAD/Rn+7AAABnUlEQVRIx9XWsUocURiG4WcHwjYihl1BLGzSJUWYcrqxChYDSTG5AO8g0weEgKXeQS4gU2RhC0nlFIEthzR221iIYAQRm0FYUujGMDFmzZ6Afu2Bl5f/cP7zddyWyio28Qov8NT/y1d8wUepo/Zh5xa5LbxHlPUy+XIuWUysddfAYXNodD5SnpSGp8OQohN8kNr6s2DlM17HC7GdZzvSpfROYnVWKcaF+qIOKTqQevO7YOUT8qyXKZ+XulF3JlozaeQHeehpllJvbwQr77ATL8RG8WhmuV8lkzoJPclCarej8gRH6O+/3P/rtd513evf1kMKfsdqdP1a+1kv+2c5SJdSWS8LKdjHZoQNyJfzuYkhGK1sRIghWUzmpoVgtBJHWMHPPTdPQjBaWYk88EQ4nv4Q8yYEo5XjCDWMzkdz00IwWqkj7EF5Us6//gMwWtl7BIs6dYltKMaFZtLcm9RMGsW4CD29banLq1ec2kVZX9Tyg/xektOyEPgfLq+d3KyZq/YwGJ4OJXWiOqtmutakTkI3mcG0yTzCwvoAK/8P/EangJw1pNkAAAAASUVORK5CYII=);
+    background-repeat: no-repeat;
+    background-position: right center;
+}
+.module_lock:not(:empty) { /* i.e. locked by somebody */
+    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAYAAAD/Rn+7AAABn0lEQVRIx9WWMU/CQBiGn15FiBiGpmtXEgdjDIuhCwMOuhgmYkd3f4KTs1P/AFMNI4sOdGCpcTVMGhi0a5EEjIJSzkEcTNSIPRN8k5su99xzd8l3n8YXiSAD7ANlYBNY429yAJyaMPpsUvtETAeOgUNgNenu+sYGacdhqVRCz+fRcjnkYEB8c8Ok1WLsecRXVw+ACxyZEPPNrZUiuI5AJh09w5BPtZr8SZ5qNdkzDDnbu/SV3J4KsQhkv1CQk05HzpNJpyP7hcI7Y+/DE0ewDlwCK0mfVFgWuSBAt6y518ZhyMC2mYbhI7BlQlvM5k5UyAFkXfdXcgC6ZZF1XWYuJwBaBDvAmQq5VLlMrtlMzBlsb/Pi+wC7AqiqqhfLjqOaUxVAUZVgyrZVc4pa9FYg0yrAxmiElk6OkuMx95kMwFiw4BHAnSrY9PZWNedOABeqBF+CQDXnQgB1VYLPnqeaUxcmnANNJSf3fZ4bjWRyjcZ7DWyacP4/vjoT2oCSKjsNQ4aVCnG3O59ct8uwUmEahgDOzGnx262Fb1i1RW/5XwGTZpxwVZcsfQAAAABJRU5ErkJggg==);
 }
 .module_lock:not(:empty):before {
-    content:"Locked by: "
+    content:"Locked by: ";
 }
 #modules_list .module_lock.locked {
     /* this selector is more specific so it will override rules of .module_lock*/

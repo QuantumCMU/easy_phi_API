@@ -29,6 +29,7 @@ define("conf_path", default="/etc/easy_phi.conf")
 define("static_path",
        default=os.path.join(os.path.dirname(__file__), '..', 'static'))
 define("server_port", default=8000)
+define("sw_version", default=VERSION)
 define("hw_version", default='N/A')
 define("vendor", type=str)
 define("welcome_message", default="")
@@ -117,7 +118,7 @@ class PlatformInfoHandler(APIHandler):
     """ Return basic info about the system """
     def get(self):
         self.write({
-            'sw_version': VERSION,
+            'sw_version': options.sw_version,
             'hw_version': options.hw_version,
             'vendor': options.vendor,
             'slots': len(options.ports),
@@ -310,7 +311,6 @@ class PageNotFoundHandler(tornado.web.RequestHandler):
 def main(application):
     # start hw configuration monitoring. It requires configuration of hw ports
     # so it shall be done after parsing conf file
-    hwconf.start()
 
     # we need HTTP server to serve SSL requests.
     ssl_ctx = None
@@ -332,6 +332,9 @@ else:
         parse_config_file(options.conf_path, final=False)
     except IOError:  # configuration file doesn't exist, use defaults
         pass
+# it should start after options already parsed, as hwconf depends on certain
+# options like ports configurations, timeouts etc
+hwconf.start()
 
 settings = {
     'debug': options.debug,

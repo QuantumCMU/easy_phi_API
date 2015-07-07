@@ -5,6 +5,9 @@ clean:
 test:
 	python -m easy_phi.tests.run_tests
 
+regression_test:
+	python -m unittest easy_phi.tests.regression_test
+
 run:
 	python easy_phi/app.py
 
