@@ -11,6 +11,7 @@ var ep = window['ep'] || {
     _api_token: '', // api_token to be used. TODO: figure out how to transfer it
     _empty_slot_str: "Empty slot", // moved out of func for localization purposes
     _broadcast_slot: 0,
+    _ws: null, //WebSocket object
 
     init: function(base_url) {
         // set global ajax error handler
@@ -25,6 +26,7 @@ var ep = window['ep'] || {
         if (base_url == null) {
             base_url = window.location.protocol + "//" +window.location.host;
         }
+
         ep.base_url = base_url;
 
         //get Platform info
@@ -32,8 +34,12 @@ var ep = window['ep'] || {
             ep.slots = platform_info.slots;
             ep.updateModuleList(); // manually update list of modules
 
-            // TODO: set websocket listener to update modules
-            // in websocket we expect slot id and module name
+            //Init WebSocket session
+            ep._ws = new WebSocket("ws://" + window.location.host + "/websocket");
+            ep._ws.onmessage = function (event) {
+                //Handle a message from WebSocket
+                ep.parseWSMessage(event.data);
+            }
 
             // TODO: update ep._username
             // TODO: update ep._api_token
@@ -164,5 +170,13 @@ var ep = window['ep'] || {
             }
         }
         alert(scpi_response);
+    },
+
+    parseWSMessage: function (message) {
+        console.log("Message from ws: " + message);
+
+        var msg_type = message['msg_type'];
+
+        console.log("Message type: " + msg_type);
     }
 };

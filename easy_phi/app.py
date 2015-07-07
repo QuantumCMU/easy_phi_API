@@ -10,6 +10,7 @@ import time
 import tornado.ioloop
 import tornado.httpserver
 import tornado.web
+import tornado.websocket
 from tornado.options import options, define
 from tornado.options import parse_config_file, parse_command_line
 
@@ -36,6 +37,8 @@ define("debug", default=False)
 
 define("default_format", default='json')
 
+#WebSocket object
+global ws
 
 class APIHandler(tornado.web.RequestHandler):
     """ Tornado handlers subclass to format response to xml/json/plain """
@@ -213,7 +216,6 @@ class SCPICommandHandler(ModuleHandler):
 
         self.write(self.module.scpi(scpi_command))
 
-
 class ModuleUIHandler(ModuleHandler):
     """API function to return small JS script to create module UI"""
     allow_broadcast = True
@@ -257,6 +259,25 @@ class ModuleUIHandler(ModuleHandler):
                 )
             )
 
+class WebSocketHandler(tornado.websocket.WebSocketHandler):
+    def update_module(added, slot):
+        global ws
+        ws.write_message({
+            'msg_type': 'MODULE_UPDATE',
+            'slot': slot,
+            'added': added
+        })
+
+    def open(self):
+        global ws
+        #Save WebSocket object
+        ws = self
+        #Add callback methods to hwconf module
+        hwconf.callbacks.append(self.update_module)
+
+    def close(self):
+        #remove callbacks from hwconf module
+        hwconf.callbacks.remove(self.update_module)
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
     """Placeholder for Admin Console web-page"""
@@ -329,6 +350,7 @@ application = tornado.web.Application([
     (r"/api/v1/send_scpi", SCPICommandHandler),
     (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
+    (r"/websocket", WebSocketHandler),
     (r"/static/(.*)", ContorlledCacheStaticFilesHandler,
         {"path": options.static_path}),
 ], **settings)
