@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import json
-import unittest
 
 import tornado.testing
+from tornado.options import options
 
 from easy_phi import app
 
@@ -143,24 +143,30 @@ class SCPICommandTest(tornado.testing.AsyncHTTPTestCase):
             "Request with slot number bigger than available ports"
             "did not cause error response")
 
-    @unittest.skip("Systemwide commands not implemented yet")
     def test_systemwide_scpi_command(self):
         response = self.fetch(
-            self.api_url + '&slot=0', method='POST', body='*IDN?')
-        response_obj = json.loads(response)
+            self.api_url+'&slot=0', method='POST', body='RAck:Size?')
+
+        self.failIf(response.error)
+        response_obj = json.loads(response.body)
+
         self.assertIsInstance(
-            response_obj, basestring,
-            "Systemwide SCPI command returned non-string")
-        self.assertTrue(
-            response_obj.startswith("Broadcast"),
-            "Module name in slot #0 does not start with 'Broadcast'")
+            response_obj, int,
+            "Systemwide command RAck:Size? didn not return integer. "
+            "Actual response: {response}".format(response=response.body)
+        )
+        self.assertGreaterEqual(
+            response_obj, len(options.ports),
+            "Systemwide command RAck:Size? returned less than ports number")
 
         response = self.fetch(
-            self.api_url+'&slot=0', method='POST', body='SYST:NAME?')
-        response_obj = json.loads(response)
+            self.api_url+'&slot=0', method='POST', body='SYSTem:VERSion?')
+
+        self.failIf(response.error)
+        response_obj = json.loads(response.body)
         self.assertIsInstance(
             response_obj, basestring,
-            "Systemwide SCPI command returned non-string")
+            "Systemwide SCPI command SYSTem:VERSion? returned non-string")
 
     def test_attempt_real_scpi_command(self):
         response = self.fetch('/api/v1/modules_list?format=json')
@@ -175,3 +181,35 @@ class SCPICommandTest(tornado.testing.AsyncHTTPTestCase):
                 self.assertIsInstance(
                     response_obj, basestring,
                     "Module SCPI command expected to return string")
+
+
+class ModuleUIHandlerTest(tornado.testing.AsyncHTTPTestCase):
+    api_url = '/api/v1/module_ui_controls?format=json'
+
+    def get_app(self):
+        return app.application
+
+    def test_required_params(self):
+        # test on Broadcast pseudo module
+        response = self.fetch(self.api_url+"&slot=0")
+
+        self.assertEqual(
+            response.code, 400,
+            "Request without container selector did not cause error response")
+
+        response = self.fetch(self.api_url+"&container=.blah")
+
+        self.assertEqual(
+            response.code, 400,
+            "Request without slot number did not cause error response")
+
+    def test_mime_type(self):
+        # test on Broadcast pseudo module
+        response = self.fetch(self.api_url+"&slot=0&container=%23blah")
+
+        self.failIf(response.error, "ModuleUI handler returned error")
+        self.assertEqual(
+            response.headers['Content-type'], 'application/javascript',
+            "ModuleUI handler returned wrong content type "
+            "('application/javascript' expected)"
+        )
