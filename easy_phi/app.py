@@ -290,7 +290,6 @@ class PageNotFoundHandler(tornado.web.RequestHandler):
 def main(application):
     # start hw configuration monitoring. It requires configuration of hw ports
     # so it shall be done after parsing conf file
-    hwconf.start()
 
     # we need HTTP server to serve SSL requests.
     ssl_ctx = None
@@ -312,6 +311,9 @@ else:
         parse_config_file(options.conf_path, final=False)
     except IOError:  # configuration file doesn't exist, use defaults
         pass
+# it should start after options already parsed, as hwconf depends on certain
+# options like ports configurations, timeouts etc
+hwconf.start()
 
 settings = {
     'debug': options.debug,
