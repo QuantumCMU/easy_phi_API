@@ -21,3 +21,12 @@ testpackage:
 
 docs:
 	mkdocs
+
+install:
+	python setup.py install
+
+uninstall:
+	rm -rf /var/www/html/easy_phi
+	rm -rf /etc/easy_phi
+	rm /etc/easy_phi.conf
+	rm /etc/udev/rules.d/99-easy_phi-modules.rules
