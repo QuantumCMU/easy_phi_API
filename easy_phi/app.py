@@ -17,7 +17,6 @@ import hwconf
 import auth
 import utils
 import scpi2widgets
-from decorators import api_auth
 
 VERSION = "0.1"
 LICENSE = "GPL v3.0"
@@ -262,8 +261,11 @@ class ModuleUIHandler(ModuleHandler):
 class AdminConsoleHandler(tornado.web.RequestHandler):
     """Placeholder for Admin Console web-page"""
 
+    @auth.admin_auth
     def get(self):
         self.write("Coming soon..")
+
+    post = delete = put = get
 
 
 class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):

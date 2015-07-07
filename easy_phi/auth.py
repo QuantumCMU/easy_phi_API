@@ -50,3 +50,16 @@ def register_token(user, api_token):
     """
     global active_tokens
     active_tokens[api_token] = user
+
+
+def admin_auth(handler):
+    """ This decorator implements HTTP Basic auth for admin page login access
+    It is different from the rest of the system and can not be implemented
+    using standard Tornado security features like @tornado.web.authenticated
+
+    """
+    def wrapper(self):
+
+        return handler(self)
+
+    return wrapper
