@@ -169,9 +169,9 @@ class SelectModuleHandler(ModuleHandler):
         used_by = getattr(self.module, 'used_by', None)
         if used_by is not None:
             self.set_status(400)
-            return {'error': "Module is used by {0}. If you need this module, "
+            self.write({'error': "Module is used by {0}. If you need this module, "
                              "you might force unlock it by issuing DELETE "
-                             "request first.".format(used_by)}
+                             "request first.".format(used_by)})
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
         self.write("OK")
 
@@ -180,7 +180,7 @@ class SelectModuleHandler(ModuleHandler):
         used_by = getattr(self.module, 'used_by', None)
         if used_by is None:
             self.set_status(400)
-            return {'error': 'Module is not used by anyone at the moment'}
+            self.write({'error': 'Module is not used by anyone at the moment'})
         setattr(self.module, 'used_by', None)
         self.write("OK")
 
@@ -261,13 +261,15 @@ class ModuleUIHandler(ModuleHandler):
             )
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
-    def update_module(added, slot):
+    def update_module(self, added, slot):
         global ws
-        ws.write_message({
+        message = {
             'msg_type': 'MODULE_UPDATE',
             'slot': slot,
+            'module_name': getattr(hwconf.modules[slot], 'name', None),
             'added': added
-        })
+            }
+        ws.write_message(message)
 
     def open(self):
         global ws

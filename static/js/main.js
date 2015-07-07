@@ -152,19 +152,8 @@ var ep = window['ep'] || {
                     * ports are not configured - add new slot dynamically */
                     ep._add_module(module_list_container, slot_id, ep._empty_slot_str);
                 }
-                // update module name in header
-                $("#module_name_" + slot_id).text(module_name || ep._empty_slot_str);
 
                 ep._updateModuleUI(slot_id, module_name);
-
-                // manually update lock status
-                if (module_name == null || slot_id==ep._broadcast_slot) {
-                    // Broadcast pseudo module
-                    ep._markUsedBy(slot_id, null);
-                }
-                else {
-                    ep._updateModuleLockStatus(slot_id, module_name);
-                }
 
                 // TODO: set websocket listener to monitor lock status
 
@@ -183,6 +172,16 @@ var ep = window['ep'] || {
         control_panel.empty();
         // mark module inactive
         header.removeClass("active");
+        header.removeClass("open");
+        // update module name in header
+        $("#module_name_" + slot_id).text(module_name || ep._empty_slot_str);
+        // manually update lock status
+        if (module_name == null || slot_id==ep._broadcast_slot) {
+            // Broadcast pseudo module
+            ep._markUsedBy(slot_id, null);
+        } else {
+            ep._updateModuleLockStatus(slot_id, module_name);
+        }
 
         if (module_name == null) return;
 
@@ -210,15 +209,24 @@ var ep = window['ep'] || {
     },
 
     _markUsedBy: function(slot_id, username) {
-        // TODO: add GUI
+        var lock_container = $("#module_header_"+slot_id).find(".module_lock");
+        if (username) {
+            lock_container.text(ep._username_alias);
+        } else {
+            //Module is not locked by anyone
+            lock_container.empty();
+        }
     },
 
     parseWSMessage: function (message) {
         console.log("Message from ws: " + message);
-
-        var msg_type = message['msg_type'];
-
-        console.log("Message type: " + msg_type);
+        var json = JSON.parse(message);
+        switch (json.msg_type) {
+            case 'MODULE_UPDATE':
+                //Request to update Module info has been received
+                ep._updateModuleUI(json.slot, json.module_name);
+                break;
+        }
     },
 
     log: function(message) {
