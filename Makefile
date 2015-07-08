@@ -3,10 +3,13 @@ clean:
 	rm -rf dist
 
 test:
-	python -m unittest easy_phi.tests.run_tests
+	python -m easy_phi.tests.run_tests
+
+regression_test:
+	python -m unittest easy_phi.tests.regression_test
 
 run:
-	easy_phi/app.py
+	python easy_phi/app.py
 
 package:
 	make clean
@@ -18,3 +21,12 @@ testpackage:
 
 docs:
 	mkdocs
+
+install:
+	python setup.py install
+
+uninstall:
+	rm -rf /var/www/html/easy_phi
+	rm -rf /etc/easy_phi
+	rm /etc/easy_phi.conf
+	rm /etc/udev/rules.d/99-easy_phi-modules.rules

@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
 
-import unittest
+import tornado.testing
+from tornado.test.util import unittest
 
-class API_test(unittest.TestCase):
+TEST_MODULES = [
+    'easy_phi.tests.handlers_test',
+    'easy_phi.tests.mod_conf_patch_test',
+    'easy_phi.tests.utils_test',
+    'easy_phi.tests.scpi2widgets_test',
+]
 
-    def test_t(self):
-        self.assertTrue(True)
 
+def all():
+    return unittest.defaultTestLoader.loadTestsFromNames(TEST_MODULES)
 
 if __name__ == '__main__':
-    unittest.main()
+    tornado.testing.main()
