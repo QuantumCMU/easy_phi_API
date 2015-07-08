@@ -38,8 +38,8 @@ define("debug", default=False)
 
 define("default_format", default='json')
 
-#WebSocket object
-global ws
+#WebSocket objects list
+ws_list = []
 
 class APIHandler(tornado.web.RequestHandler):
     """ Tornado handlers subclass to format response to xml/json/plain """
@@ -85,7 +85,9 @@ class ModuleHandler(APIHandler):
     allow_broadcast = False
     slot = None
     module = None  # updated by self.prepare() if slot number is correct
-    api_token = None  # updated by decorator @api_auth
+    #api_token = None  # updated by decorator @api_auth
+    #TODO Delete this
+    api_token = 'temporary_token'
 
     def prepare(self):
         err = ''
@@ -172,7 +174,11 @@ class SelectModuleHandler(ModuleHandler):
             self.write({'error': "Module is used by {0}. If you need this module, "
                              "you might force unlock it by issuing DELETE "
                              "request first.".format(used_by)})
+            return
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
+        #Send update to all clients via WS
+        for ws in ws_list:
+            ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
         self.write("OK")
 
     def delete(self):
@@ -181,7 +187,11 @@ class SelectModuleHandler(ModuleHandler):
         if used_by is None:
             self.set_status(400)
             self.write({'error': 'Module is not used by anyone at the moment'})
+            return
         setattr(self.module, 'used_by', None)
+        #Send update to all clients via WS
+        for ws in ws_list:
+            ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
         self.write("OK")
 
     def get(self):
@@ -261,24 +271,85 @@ class ModuleUIHandler(ModuleHandler):
             )
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
+    allow_broadcast = False
+
     def update_module(self, added, slot):
-        global ws
-        message = {
-            'msg_type': 'MODULE_UPDATE',
-            'slot': slot,
-            'module_name': getattr(hwconf.modules[slot], 'name', None),
-            'added': added
+        err = ''
+        max_slot = len(hwconf.modules) - 1
+        min_slot = 0 if self.allow_broadcast else 1
+        if not min_slot <= slot <= max_slot:  # invalid slot number
+            err = 'Invalid slot number. Number in range ' + \
+                  '{0}..{1} expected'.format(min_slot, max_slot)
+        if err:
+            message = {
+                'msg_type': 'ERROR',
+                'message': err
             }
-        ws.write_message(message)
+        else:
+            message = {
+                'msg_type': 'MODULE_UPDATE',
+                'slot': slot,
+                'module_name': getattr(hwconf.modules[slot], 'name', None),
+                'added': added
+            }
+        self.write_message(message)
+
+    def update_lock(self, slot, used_by):
+        err = ''
+        max_slot = len(hwconf.modules) - 1
+        min_slot = 0 if self.allow_broadcast else 1
+        if not min_slot <= slot <= max_slot:  # invalid slot number
+            err = 'Invalid slot number. Number in range ' + \
+                  '{0}..{1} expected'.format(min_slot, max_slot)
+        elif hwconf.modules[slot] is None:
+            err = 'Selected slot is empty'
+
+        if err:
+            message = {
+                'msg_type': 'ERROR',
+                'message': err
+            }
+        else:
+            message = {
+                'msg_type': 'LOCK_UPDATE',
+                'slot': slot,
+                'used_by': used_by
+            }
+        self.write_message(message)
+
+    def send_data(self, slot, data):
+        err = ''
+        max_slot = len(hwconf.modules) - 1
+        min_slot = 0 if self.allow_broadcast else 1
+        if not min_slot <= slot <= max_slot:  # invalid slot number
+            err = 'Invalid slot number. Number in range ' + \
+                  '{0}..{1} expected'.format(min_slot, max_slot)
+        elif hwconf.modules[slot] is None:
+            err = 'Selected slot is empty'
+
+        if err:
+            message = {
+                'msg_type': 'ERROR',
+                'message': err
+            }
+        else:
+            message = {
+                'msg_type': 'DATA_UPDATE',
+                'slot': slot,
+                'data': data
+            }
+        self.write_message(message)
 
     def open(self):
         global ws
         #Save WebSocket object
-        ws = self
+        ws_list.append(self)
         #Add callback methods to hwconf module
         hwconf.callbacks.append(self.update_module)
 
     def close(self):
+        #Remove WebSocket object
+        ws_list.remove(self)
         #remove callbacks from hwconf module
         hwconf.callbacks.remove(self.update_module)
 

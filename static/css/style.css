@@ -37,6 +37,7 @@
     overflow: auto;
     border: 1px solid black;
     resize:none;
+    padding: 5px;
 }
 /*=========================================
 *        MAIN CONTENT CONTAINER

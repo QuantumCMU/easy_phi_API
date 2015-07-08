@@ -11,7 +11,7 @@ var ep = window['ep'] || {
     base_url: '',
     slots: 0,
     info: null,
-    _username: 'Somebody', // User name from auth, updated at init()
+    _username: 'Me', // User name from auth, updated at init()
     _username_alias: 'You', // Friendly name to address user in GUI.
                             // It is here for localization purposes
     _api_token: '', // api_token to be used. TODO: figure out how to transfer it
@@ -50,7 +50,7 @@ var ep = window['ep'] || {
             ep._ws = new WebSocket("ws://" + window.location.host + "/websocket");
             ep._ws.onmessage = function (event) {
                 //Handle a message from WebSocket
-                ep.parseWSMessage(event.data);
+                ep._parseWSMessage(event.data);
             }
 
             // TODO: update ep._username
@@ -105,7 +105,6 @@ var ep = window['ep'] || {
                     url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id,
                     type: 'DELETE',
                 });
-                lock_container.empty();
                 $(this).toggleClass("open", false);
                 return;
             }
@@ -113,25 +112,26 @@ var ep = window['ep'] || {
             // container is being opened
             var locked_by = lock_container.text();
             if (locked_by && locked_by != ep._username &&
-                locked_by != ep._username_alias &&
-                confirm("This module is used by " + locked_by + ". Do you " +
+                locked_by != ep._username_alias) {
+                //Module is locked by someone. Prompt user to force unlock it
+                if (confirm("This module is used by " + locked_by + ". Do you " +
                         "want to force unlock it?")) {
-                // used by somebody - try force unlock
-                if ($.ajax({type: 'DELETE', async: false,
-                        url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id
-                        }).responseText != "OK") {
-                    alert("Failed to unlock module. Please try again");
-                    return;
-                }
-                // mark module as used
-                if ($.ajax({ type: 'POST', async: false,
-                        url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id
-                        }).responseText != "OK") {
-                    alert("Failed to acquire module lock. Please unlock and try again");
-                    return;
+                    // used by somebody - try force unlock
+                    if ($.ajax({type: 'DELETE', async: false,
+                            url: ep.base_url + "/api/v1/lock_module?format=plain&slot=" + slot_id
+                            }).responseText != "OK") {
+                        alert("Failed to unlock module. Please try again");
+                        return;
+                    }
                 }
             }
-            lock_container.text(ep._username_alias);
+            // mark module as used
+            if ($.ajax({ type: 'POST', async: false,
+                    url: ep.base_url + "/api/v1/lock_module?format=plain&slot=" + slot_id
+                    }).responseText != "OK") {
+                alert("Failed to acquire module lock. Please unlock and try again");
+                return;
+            }
             $(this).toggleClass("open", true);
         });
     },
@@ -154,9 +154,6 @@ var ep = window['ep'] || {
                 }
 
                 ep._updateModuleUI(slot_id, module_name);
-
-                // TODO: set websocket listener to monitor lock status
-
             });
         });
     },
@@ -180,7 +177,10 @@ var ep = window['ep'] || {
             // Broadcast pseudo module
             ep._markUsedBy(slot_id, null);
         } else {
-            ep._updateModuleLockStatus(slot_id, module_name);
+            $.get(ep.base_url+"/api/v1/lock_module?format=json&slot=" + slot_id,
+                function (used_by) {
+                    ep._markUsedBy(slot_id, used_by)
+                });
         }
 
         if (module_name == null) return;
@@ -196,35 +196,48 @@ var ep = window['ep'] || {
         });
     },
 
-    _updateModuleLockStatus: function(slot_id) {
+    _updateModuleLockStatus: function(slot_id, used_by) {
         if (slot_id == ep._broadcast_slot) {
             // TODO: log warning
         }
         else {
-            $.get(ep.base_url+"/api/v1/lock_module?format=json&slot=" + slot_id,
-                function (username) {
-                    ep._markUsedBy(slot_id, username)
-                });
+            ep._markUsedBy(slot_id, used_by);
         }
     },
 
-    _markUsedBy: function(slot_id, username) {
+    _markUsedBy: function(slot_id, used_by) {
         var lock_container = $("#module_header_"+slot_id).find(".module_lock");
-        if (username) {
-            lock_container.text(ep._username_alias);
+        if (used_by) {
+            lock_container.text(used_by);
+            $("#module_header_"+slot_id).toggleClass("open", false);
         } else {
             //Module is not locked by anyone
             lock_container.empty();
         }
     },
 
-    parseWSMessage: function (message) {
+    _parseWSMessage: function (message) {
         console.log("Message from ws: " + message);
         var json = JSON.parse(message);
         switch (json.msg_type) {
             case 'MODULE_UPDATE':
                 //Request to update Module info has been received
                 ep._updateModuleUI(json.slot, json.module_name);
+                break;
+
+            case 'LOCK_UPDATE':
+                //Update lock status of the module
+                ep._updateModuleLockStatus(json.slot, json.used_by);
+                break;
+
+            case 'DATA_UPDATE':
+                //Log received data from module to the console
+                ep.log("Slot " + json.slot + ": Data received: " + json.data);
+                break;
+
+            case 'ERROR':
+                //Error indicator has been received
+                ep.log("An error occured while trying to get data through WebSocket. Error: " + json.message);
                 break;
         }
     },
