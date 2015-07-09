@@ -4,7 +4,6 @@
 import serial
 import threading
 
-from tornado import gen
 from tornado.options import options, define
 
 import mod_conf_patch
@@ -160,7 +159,6 @@ class USBTMCModule(AbstractMeasurementModule):
         # TODO: check actual usb-tmc device properties and update
         return device.get('ID_USB_DRIVER') == 'usbtmc'
 
-    @gen.coroutine
     def scpi(self, command):
         # TODO: write actual implementation
         return "OK"
