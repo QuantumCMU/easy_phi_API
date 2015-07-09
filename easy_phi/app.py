@@ -18,7 +18,7 @@ import auth
 import utils
 import scpi2widgets
 
-VERSION = "0.1"
+VERSION = "0.2.1"
 LICENSE = "GPL v3.0"
 PROJECT = "easy_phi"
 
@@ -288,21 +288,6 @@ class PageNotFoundHandler(tornado.web.RequestHandler):
 
     post = put = delete = get
 
-
-def main(application):
-    # start hw configuration monitoring. It requires configuration of hw ports
-    # so it shall be done after parsing conf file
-    hwconf.start()
-
-    # we need HTTP server to serve SSL requests.
-    ssl_ctx = None
-    http_server = tornado.httpserver.HTTPServer(
-        application, ssl_options=ssl_ctx)
-    http_server.listen(options.server_port)
-    tornado.ioloop.IOLoop.current().start()
-
-    # TODO: add TCP socket handler to listen for HiSlip requests from VISA
-
 if __name__ == '__main__':
     # parse command line twice to allow pass configuration file path
     parse_command_line(final=False)
@@ -314,6 +299,9 @@ else:
         parse_config_file(options.conf_path, final=False)
     except IOError:  # configuration file doesn't exist, use defaults
         pass
+# it should start after options already parsed, as hwconf depends on certain
+# options like ports configurations, timeouts etc
+hwconf.start()
 
 settings = {
     'debug': options.debug,
@@ -335,6 +323,19 @@ application = tornado.web.Application([
     (r"/static/(.*)", ContorlledCacheStaticFilesHandler,
         {"path": options.static_path}),
 ], **settings)
+
+def main(application=application):
+    # start hw configuration monitoring. It requires configuration of hw ports
+    # so it shall be done after parsing conf file
+
+    # we need HTTP server to serve SSL requests.
+    ssl_ctx = None
+    http_server = tornado.httpserver.HTTPServer(
+        application, ssl_options=ssl_ctx)
+    http_server.listen(options.server_port)
+    tornado.ioloop.IOLoop.current().start()
+
+    # TODO: add TCP socket handler to listen for HiSlip requests from VISA
 
 if __name__ == '__main__':
     main(application)

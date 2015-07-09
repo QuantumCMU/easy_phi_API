@@ -1,4 +1,7 @@
-from distutils.core import setup
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from setuptools import setup
 
 from easy_phi import VERSION, LICENSE, PROJECT
 
@@ -9,7 +12,7 @@ reqs = [line.split("#", 1)[0].strip() for line in rq_fh.read().split("\n")
 # options reference: https://docs.python.org/2/distutils/
 setup(
     name=PROJECT,
-    packages=[PROJECT],
+    packages=[PROJECT, 'static'],
     version=VERSION,
     license=LICENSE,
     description='Easy Phi project web application',
@@ -29,10 +32,18 @@ setup(
         "Topic :: Scientific/Engineering :: "
         "Interface Engine/Protocol Translator",
     ),
+    entry_points = {
+        'console_scripts': ['easy_phi = easy_phi.app:main']
+    },
     data_files=[
         ('/etc', ['scripts/easy_phi.conf']),
         ('/etc/udev/rules.d', ['scripts/99-easy_phi-modules.rules']),
-        ('/etc/easy_phi', ['modules_conf_patches.conf']),
+        ('/etc/easy_phi', ['scripts/modules_conf_patches.conf',
+                           'scripts/widgets.conf']),
     ],
+    package_data={
+        'static': ['*.html', 'css/*', 'js/*'],
+    },
     requires=reqs,
+    # TODO: add unit tests
 )

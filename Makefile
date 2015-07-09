@@ -5,6 +5,9 @@ clean:
 test:
 	python -m easy_phi.tests.run_tests
 
+regression_test:
+	python -m unittest easy_phi.tests.regression_test
+
 run:
 	python easy_phi/app.py
 
@@ -18,3 +21,13 @@ testpackage:
 
 docs:
 	mkdocs
+
+install:
+	python setup.py install
+
+uninstall:
+	rm -rf /usr/local/lib/python2.7/dist-packages/easy_phi-0.*
+	rm -rf /var/www/html/easy_phi
+	rm -rf /etc/easy_phi
+	rm /etc/easy_phi.conf
+	rm /etc/udev/rules.d/99-easy_phi-modules.rules
