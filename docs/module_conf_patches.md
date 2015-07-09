@@ -1,8 +1,7 @@
 
 Problem
 -------
-not all equipment is willing to tell us supported commands
-========
+#### not all equipment is willing to tell us supported commands
 
 Easy Phi generates web interface of a module basing on list of supported SCPI commands.
 Usually this list can be acquired by issuing SYSTem:HELP? command, but in many cases
@@ -15,8 +14,7 @@ an equipment which doesn't tell us what SCPI commands it support.
 
 Solution
 --------
-... store configuration patches in separate file
-=============
+#### ... store configuration patches in separate file
 
 In many cases we know set of supported commands, e.g. from printed manual, its just
 can not be extracted from equipment itself. In this case we might put list of commands
@@ -25,23 +23,22 @@ we just mapping of equipment to list of supported scpi commands.
 
 By default, configuration file stored at `/etc/easy_phi/modules_conf_patches.conf`
 
-Problem #2
+Problem \#2
 -----------
-equipment name is not unique identifier
-=========
+#### equipment name is not unique identifier
 
 In industry, manufacturers of serial equipment usually provide unique name for the
 equipment, e.g. "ACME oscilloscope ACOS-2319". However, it is in industry world where
 every piece of equipment produced in a large series and there is a lot of attention to
 details. In a research world custom piece of equipment might be created just for a
-single experiment, simply by adding handlers to a standard template. Many deverlopers
+single experiment, simply by adding handlers to a standard template. Many developers
 don't even care to change default name in the template, making device detection a
 challenging task.
 
-Solution #2
+Solution \#2
 -----------
-custom rules
-===============
+#### custom rules
+
 
 First solution to this problem is to provide more flexible configuration, i.e. not only
 by name but also by vendor id, serial number etc. Hopefully more flexible rules allow
