@@ -18,9 +18,8 @@ import auth
 import utils
 import scpi2widgets
 
-VERSION = "0.2.2"
-LICENSE = "GPL v3.0"
-PROJECT = "easy_phi"
+# whenever you change version, please update setup.py as well
+VERSION = "0.2.6"
 
 # configuration defaults
 define("conf_path", default="/etc/easy_phi.conf")

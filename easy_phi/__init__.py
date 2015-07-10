@@ -3,8 +3,9 @@
 Project website: http://easy-phi.ch
 
 """
-from easy_phi.app import VERSION, LICENSE, PROJECT
+from easy_phi.app import VERSION
 
 __version__ = VERSION
-__license__ = LICENSE
-__project__ = PROJECT
+__license__ = "GPL v3.0"
+__project__ = "easy_phi"
+
