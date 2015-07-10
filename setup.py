@@ -5,10 +5,6 @@ from setuptools import setup
 
 from easy_phi import VERSION, LICENSE, PROJECT
 
-rq_fh = open('requirements.txt', 'r')
-reqs = [line.split("#", 1)[0].strip() for line in rq_fh.read().split("\n")
-        if line.split("#", 1)[0].strip()]
-
 # options reference: https://docs.python.org/2/distutils/
 setup(
     name=PROJECT,
@@ -44,6 +40,6 @@ setup(
     package_data={
         'static': ['*.html', 'css/*', 'js/*'],
     },
-    requires=reqs,
+    requires=['tornado', 'pyudev', 'pyserial', 'dicttoxml'],
     # TODO: add unit tests
 )

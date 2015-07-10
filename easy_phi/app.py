@@ -18,7 +18,7 @@ import auth
 import utils
 import scpi2widgets
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 LICENSE = "GPL v3.0"
 PROJECT = "easy_phi"
 
