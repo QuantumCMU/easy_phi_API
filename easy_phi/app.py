@@ -18,9 +18,8 @@ import auth
 import utils
 import scpi2widgets
 
-VERSION = "0.2.1"
-LICENSE = "GPL v3.0"
-PROJECT = "easy_phi"
+# whenever you change version, please update setup.py as well
+VERSION = "0.2.6"
 
 # configuration defaults
 define("conf_path", default="/etc/easy_phi.conf")
@@ -59,6 +58,11 @@ class APIHandler(tornado.web.RequestHandler):
         super(APIHandler, self).write(chunk)
 
     def get(self):
+        """ It is totally possible to use SUPPORTED_METHODS to return HTTP 405
+        We use explicit methods definitions because it is easier to subclass.
+
+        Also, we don't use HTTPError exception to format response by write()
+        """
         self.set_status(405)
         self.write({'errror': "This method does not accept GET requests"})
 
@@ -261,7 +265,7 @@ class ModuleUIHandler(ModuleHandler):
 class AdminConsoleHandler(tornado.web.RequestHandler):
     """Placeholder for Admin Console web-page"""
 
-    @auth.admin_auth
+    @auth.http_basic(auth.admin_auth)
     def get(self):
         self.write("Coming soon..")
 
@@ -299,6 +303,7 @@ else:
         parse_config_file(options.conf_path, final=False)
     except IOError:  # configuration file doesn't exist, use defaults
         pass
+
 # it should start after options already parsed, as hwconf depends on certain
 # options like ports configurations, timeouts etc
 hwconf.start()
@@ -306,6 +311,10 @@ hwconf.start()
 settings = {
     'debug': options.debug,
     'default_handler_class': PageNotFoundHandler,
+    'static_url_prefix': '/static/',
+    'static_handler_class': ContorlledCacheStaticFilesHandler,
+    'static_path': options.static_path,
+    'login_url': '/login/',
 }
 
 # URL schemas to RequestHandler classes mapping
@@ -320,9 +329,8 @@ application = tornado.web.Application([
     (r"/api/v1/send_scpi", SCPICommandHandler),
     (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
-    (r"/static/(.*)", ContorlledCacheStaticFilesHandler,
-        {"path": options.static_path}),
 ], **settings)
+
 
 def main(application=application):
     # start hw configuration monitoring. It requires configuration of hw ports
