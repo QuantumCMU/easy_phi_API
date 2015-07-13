@@ -9,12 +9,18 @@ whether user will be authenticated by plaintext password or using Google
 credentials, so we need an abstraction layer, implemented in this file.
 
 """
+import base64
+import functools
 
 from tornado.options import options
 
+
+options.define('admin_login', default='easy-phi')
+options.define('admin_password', default='easy-phi')
+
 # map of api_tokens to authenticated users
 # i.e. active_tokens[hash_value] = username
-active_tokens = {'temporary_token':'Somebody'}
+active_tokens = {'temporary_token': 'Somebody'}
 
 
 def validate_api_token(token):
@@ -50,3 +56,46 @@ def register_token(user, api_token):
     """
     global active_tokens
     active_tokens[api_token] = user
+
+
+def admin_auth(user, password):
+    """ Function to authenticate admin user
+    """
+    return (user == options.admin_login and
+            password == options.admin_password)
+
+
+def parse_http_basic_auth(request):
+    """ Parse request headers and return HTTP Basic auth user, None otherwise
+    """
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Basic '):
+        try:
+            return base64.b64decode(auth_header[6:]).split(":", 2)
+        except TypeError:
+            pass
+    return None, None
+
+
+def http_basic(auth_func):
+    """ Decorator for admin console handler functions
+    It is different from general user login because of configurable security
+    backends. Administrator password is stored in plaintext in options file
+
+    At the same time, admin account does not have access to API
+
+    Admin login is performed using HTTP Basic authentication
+    """
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(self, *args, **kwargs):
+            user, pwd = parse_http_basic_auth(self.request)
+            if not auth_func(user, pwd):
+                self.set_header('WWW-Authenticate',
+                                'Basic realm=Easy Phi administration console')
+                self.set_status(401)
+                self.finish("Authentication required")
+            else:
+                method(self, *args, **kwargs)
+        return wrapper
+    return decorator
