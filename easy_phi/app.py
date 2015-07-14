@@ -213,8 +213,9 @@ class SCPICommandHandler(ModuleHandler):
         """Transfer SCPI command to a module and return the response"""
         # Check user lock status
         used_by = getattr(self.module, 'used_by', None)
+        print used_by
         # auth.user_by_token(None) returns None, in case selection isn't used
-        if used_by != auth.user_by_token(self.api_token):
+        if used_by and used_by != auth.user_by_token(self.api_token):
             self.set_status(409)  # Conflict
             self.finish({
                 'error': "Module is used by {0}. If you need this module, you "
