@@ -36,8 +36,8 @@ define("debug", default=False)
 
 define("default_format", default='json')
 
-#WebSocket objects list
-ws_list = []
+#WebSocket object
+global ws
 
 class APIHandler(tornado.web.RequestHandler):
     """ Tornado handlers subclass to format response to xml/json/plain """
@@ -179,9 +179,9 @@ class SelectModuleHandler(ModuleHandler):
                              "request first.".format(used_by)})
             return
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
+        global ws
         #Send update to all clients via WS
-        for ws in ws_list:
-            ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
+        ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
         self.write("OK")
 
     def delete(self):
@@ -193,8 +193,8 @@ class SelectModuleHandler(ModuleHandler):
             return
         setattr(self.module, 'used_by', None)
         #Send update to all clients via WS
-        for ws in ws_list:
-            ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
+        global ws
+        ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
         self.write("OK")
 
     def get(self):
@@ -345,16 +345,14 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
         global ws
-        #Save WebSocket object
-        ws_list.append(self)
-        #Add callback methods to hwconf module
+        ws = self
         hwconf.callbacks.append(self.update_module)
 
     def close(self):
-        #Remove WebSocket object
-        ws_list.remove(self)
-        #remove callbacks from hwconf module
         hwconf.callbacks.remove(self.update_module)
+
+    def on_message(self, message):
+        self.write_message('Echo:' + message)
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
     """Placeholder for Admin Console web-page"""
@@ -423,7 +421,7 @@ application = tornado.web.Application([
     (r"/api/v1/send_scpi", SCPICommandHandler),
     (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
-(r"/websocket", WebSocketHandler)
+    (r"/websocket", WebSocketHandler)
 ], **settings)
 
 
