@@ -12,11 +12,15 @@ credentials, so we need an abstraction layer, implemented in this file.
 import base64
 import functools
 
-from tornado.options import options
+from tornado.options import options, define
 
 
-options.define('admin_login', default='easy-phi')
-options.define('admin_password', default='easy-phi')
+define('admin_login', default='easy-phi')
+define('admin_password', default='easy-phi')
+define('security_backend', 'easy_phi.auth.dummy')
+define('security_backends', default=[
+    'easy_phi.auth.dummy'
+])
 
 # map of api_tokens to authenticated users
 # i.e. active_tokens[hash_value] = username
@@ -99,3 +103,8 @@ def http_basic(auth_func):
                 method(self, *args, **kwargs)
         return wrapper
     return decorator
+
+
+class Dummy(tornado.web.RequestHandler):
+    def get(self):
+        pass

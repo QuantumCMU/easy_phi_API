@@ -11,7 +11,7 @@ from tornado.options import define, options
 
 import hwal
 
-define('ports', type=list, default=[])
+define('ports', default=[])
 
 callbacks = [
     # hardware configuration change listener will call these methods
@@ -102,8 +102,7 @@ observer = pyudev.MonitorObserver(monitor, hwconf_listener)
 def start():
     """ update hardware configuration on start and install udev listener """
     global modules
-    for port in options.ports:
-        modules += [None]
+    modules += [None] * len(options.ports)
     observer.start()
     hwconf_update()
 

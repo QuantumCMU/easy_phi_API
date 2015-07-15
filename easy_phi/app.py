@@ -272,6 +272,27 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
     post = delete = put = get
 
 
+class LogoutHandler(tornado.web.RequestHandler):
+    """ Universal logout handler for all security backends
+
+    Actually, it just deletes user cookie
+    """
+    def get(self):
+        self.clear_cookie('')
+        # TODO: add informative message
+        self.redirect('/')
+
+class LoginHandler(tornado.web.RequestHandler):
+    """ Universal logout handler for all security backends
+
+    Actually, it just deletes user cookie
+    """
+    def get(self):
+        self.clear_cookie('')
+        # TODO: add informative message
+        self.redirect('/')
+
+
 class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
     """Debug handler to serve static files without caching"""
 
@@ -329,6 +350,8 @@ application = tornado.web.Application([
     (r"/api/v1/send_scpi", SCPICommandHandler),
     (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
+    (r"/logout", LogoutHandler),
+    (r"/login", LoginHandler),
 ], **settings)
 
 
