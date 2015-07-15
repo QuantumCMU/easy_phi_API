@@ -4,7 +4,7 @@ import json
 import tornado.testing
 from tornado.options import options
 import tornado.websocket
-from tornado.websocket import websocket_connect, WebSocketHandler
+from tornado.websocket import websocket_connect
 from tornado import gen
 
 from easy_phi import app
@@ -217,6 +217,7 @@ class ModuleUIHandlerTest(tornado.testing.AsyncHTTPTestCase):
             "('application/javascript' expected)"
         )
 
+
 class WebSocketBaseTestCase(tornado.testing.AsyncHTTPTestCase):
     @gen.coroutine
     def ws_connect(self, path, compression_options=None):
@@ -232,6 +233,7 @@ class WebSocketBaseTestCase(tornado.testing.AsyncHTTPTestCase):
         tests.
         """
         ws.close()
+
 
 class WebSocketTest(WebSocketBaseTestCase):
     def get_app(self):

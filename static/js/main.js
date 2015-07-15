@@ -113,7 +113,7 @@ var ep = window['ep'] || {
             var locked_by = lock_container.text();
             if (locked_by && locked_by != ep._username &&
                 locked_by != ep._username_alias) {
-                //Module is locked by someone. Prompt user to force unlock it
+                 //Module is locked by someone. Prompt user to force unlock it
                 if (confirm("This module is used by " + locked_by + ". Do you " +
                         "want to force unlock it?")) {
                     // used by somebody - try force unlock
@@ -123,8 +123,12 @@ var ep = window['ep'] || {
                         alert("Failed to unlock module. Please try again");
                         return;
                     }
+                } else {
+                    //User has not confirmed force unlock. Cancel the whole thing
+                    return;
                 }
             }
+
             // mark module as used
             if ($.ajax({ type: 'POST', async: false,
                     url: ep.base_url + "/api/v1/lock_module?format=plain&slot=" + slot_id
@@ -168,8 +172,7 @@ var ep = window['ep'] || {
         // collapse module control panel
         control_panel.empty();
         // mark module inactive
-        header.removeClass("active");
-        header.removeClass("open");
+        header.removeClass("active open");
         // update module name in header
         $("#module_name_" + slot_id).text(module_name || ep._empty_slot_str);
         // manually update lock status
@@ -209,7 +212,7 @@ var ep = window['ep'] || {
         var lock_container = $("#module_header_"+slot_id).find(".module_lock");
         if (used_by) {
             lock_container.text(used_by);
-            $("#module_header_"+slot_id).toggleClass("open", false);
+            lock_container.parent().toggleClass("open", false);
         } else {
             //Module is not locked by anyone
             lock_container.empty();
@@ -233,11 +236,6 @@ var ep = window['ep'] || {
             case 'DATA_UPDATE':
                 //Log received data from module to the console
                 ep.log("Slot " + json.slot + ": Data received: " + json.data);
-                break;
-
-            case 'ERROR':
-                //Error indicator has been received
-                ep.log("An error occured while trying to get data through WebSocket. Error: " + json.message);
                 break;
         }
     },

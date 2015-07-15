@@ -36,8 +36,9 @@ define("debug", default=False)
 
 define("default_format", default='json')
 
-#WebSocket object
-global ws
+# WebSocket object
+ws = None
+
 
 class APIHandler(tornado.web.RequestHandler):
     """ Tornado handlers subclass to format response to xml/json/plain """
@@ -88,8 +89,8 @@ class ModuleHandler(APIHandler):
     allow_broadcast = False
     slot = None
     module = None  # updated by self.prepare() if slot number is correct
-    #api_token = None  # updated by decorator @api_auth
-    #TODO Delete this
+    # api_token = None  # updated by decorator @api_auth
+    # TODO Delete this
     api_token = 'temporary_token'
 
     def prepare(self):
@@ -175,12 +176,12 @@ class SelectModuleHandler(ModuleHandler):
         if used_by is not None:
             self.set_status(400)
             self.write({'error': "Module is used by {0}. If you need this module, "
-                             "you might force unlock it by issuing DELETE "
-                             "request first.".format(used_by)})
+                                 "you might force unlock it by issuing DELETE "
+                                 "request first.".format(used_by)})
             return
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
         global ws
-        #Send update to all clients via WS
+        # Send update to all clients via WS
         ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
         self.write("OK")
 
@@ -192,7 +193,7 @@ class SelectModuleHandler(ModuleHandler):
             self.write({'error': 'Module is not used by anyone at the moment'})
             return
         setattr(self.module, 'used_by', None)
-        #Send update to all clients via WS
+        # Send update to all clients via WS
         global ws
         ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
         self.write("OK")
@@ -213,7 +214,6 @@ class SCPICommandHandler(ModuleHandler):
         """Transfer SCPI command to a module and return the response"""
         # Check user lock status
         used_by = getattr(self.module, 'used_by', None)
-        print used_by
         # auth.user_by_token(None) returns None, in case selection isn't used
         if used_by and used_by != auth.user_by_token(self.api_token):
             self.set_status(409)  # Conflict
@@ -230,6 +230,7 @@ class SCPICommandHandler(ModuleHandler):
             return
 
         self.write(self.module.scpi(scpi_command))
+
 
 class ModuleUIHandler(ModuleHandler):
     """API function to return small JS script to create module UI"""
@@ -274,86 +275,56 @@ class ModuleUIHandler(ModuleHandler):
                 )
             )
 
+
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
+    """API function that opens/closes WebSocket connection and
+    provides interface to send data through the WebSocket"""
     allow_broadcast = False
 
     def update_module(self, added, slot):
-        err = ''
-        max_slot = len(hwconf.modules) - 1
-        min_slot = 0 if self.allow_broadcast else 1
-        if not min_slot <= slot <= max_slot:  # invalid slot number
-            err = 'Invalid slot number. Number in range ' + \
-                  '{0}..{1} expected'.format(min_slot, max_slot)
-        if err:
-            message = {
-                'msg_type': 'ERROR',
-                'message': err
-            }
-        else:
-            message = {
-                'msg_type': 'MODULE_UPDATE',
-                'slot': slot,
-                'module_name': getattr(hwconf.modules[slot], 'name', None),
-                'added': added
-            }
+        """Send update to clients indicating that module has been added/removed"""
+        message = {
+            'msg_type': 'MODULE_UPDATE',
+            'slot': slot,
+            'module_name': getattr(hwconf.modules[slot], 'name', None),
+            'added': added
+        }
         self.write_message(message)
 
     def update_lock(self, slot, used_by):
-        err = ''
-        max_slot = len(hwconf.modules) - 1
-        min_slot = 0 if self.allow_broadcast else 1
-        if not min_slot <= slot <= max_slot:  # invalid slot number
-            err = 'Invalid slot number. Number in range ' + \
-                  '{0}..{1} expected'.format(min_slot, max_slot)
-        elif hwconf.modules[slot] is None:
-            err = 'Selected slot is empty'
-
-        if err:
-            message = {
-                'msg_type': 'ERROR',
-                'message': err
-            }
-        else:
-            message = {
-                'msg_type': 'LOCK_UPDATE',
-                'slot': slot,
-                'used_by': used_by
-            }
+        """Send update to clients indicating that module has been locked/unlocked"""
+        message = {
+            'msg_type': 'LOCK_UPDATE',
+            'slot': slot,
+            'used_by': used_by
+        }
         self.write_message(message)
 
     def send_data(self, slot, data):
-        err = ''
-        max_slot = len(hwconf.modules) - 1
-        min_slot = 0 if self.allow_broadcast else 1
-        if not min_slot <= slot <= max_slot:  # invalid slot number
-            err = 'Invalid slot number. Number in range ' + \
-                  '{0}..{1} expected'.format(min_slot, max_slot)
-        elif hwconf.modules[slot] is None:
-            err = 'Selected slot is empty'
-
-        if err:
-            message = {
-                'msg_type': 'ERROR',
-                'message': err
-            }
-        else:
-            message = {
-                'msg_type': 'DATA_UPDATE',
-                'slot': slot,
-                'data': data
-            }
+        """Send data generated by a module to clients"""
+        message = {
+            'msg_type': 'DATA_UPDATE',
+            'slot': slot,
+            'data': data
+        }
         self.write_message(message)
 
     def open(self):
+        """Open WebSocket connection"""
         global ws
         ws = self
+        # add update_module function as a callback to hwconf module
         hwconf.callbacks.append(self.update_module)
 
-    def close(self):
+    def close(self, **kwargs):
+        """Close WebSocket connection"""
+        # remove update_module function as a callback to hwconf module
         hwconf.callbacks.remove(self.update_module)
 
     def on_message(self, message):
+        """This method is for testing purposes and simply echoes received messages"""
         self.write_message('Echo:' + message)
+
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
     """Placeholder for Admin Console web-page"""
