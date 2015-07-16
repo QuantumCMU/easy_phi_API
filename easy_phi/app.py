@@ -39,6 +39,43 @@ define("default_format", default='json')
 class APIHandler(tornado.web.RequestHandler):
     """ Tornado handlers subclass to format response to xml/json/plain """
 
+    # default value of api_token is empty string
+    # this is done to make it optional with dummy auth backend
+    api_token = ''
+
+    def prepare(self):
+        """ Look for API token in request
+        API token is looked in following order:
+            - cookie 'api_token'
+            - HTTP Basic auth password, if username is api_token
+            - GET request variable api_token
+        """
+        api_token = self.get_cookie(options.session_cookie_name)
+
+        if api_token is None:
+            user, pwd = auth.parse_http_basic_auth(self.request)
+            if user == 'api_token':
+                api_token = pwd
+
+        if api_token is None:
+            api_token = self.get_argument('api_token')
+
+        if api_token is None:
+            self.set_status(401)
+            self.finish({"error": "api_token is missing. You can pass it in "
+                                  "request GET parameters, cookie or HTTP "
+                                  "Basic auth credentials"
+                         })
+            return
+        elif api_token not in auth.active_tokens:
+            self.set_status(401)
+            self.finish({"error": "api_token is invalid. Please login and check"
+                                  " api token at your profile"
+                         })
+            return
+        else:
+            self.api_token = api_token
+
     def data_received(self, chunk):
         # to get rid of annoying pylint message about not implemented
         # abstract method
@@ -88,6 +125,8 @@ class ModuleHandler(APIHandler):
     api_token = None  # updated by decorator @api_auth
 
     def prepare(self):
+        super(ModuleHandler, self).prepare()
+
         err = ''
         slot = self.get_argument('slot', '')
         if slot == '':
@@ -272,27 +311,6 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
     post = delete = put = get
 
 
-class LogoutHandler(tornado.web.RequestHandler):
-    """ Universal logout handler for all security backends
-
-    Actually, it just deletes user cookie
-    """
-    def get(self):
-        self.clear_cookie('')
-        # TODO: add informative message
-        self.redirect('/')
-
-class LoginHandler(tornado.web.RequestHandler):
-    """ Universal logout handler for all security backends
-
-    Actually, it just deletes user cookie
-    """
-    def get(self):
-        self.clear_cookie('')
-        # TODO: add informative message
-        self.redirect('/')
-
-
 class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
     """Debug handler to serve static files without caching"""
 
@@ -335,7 +353,7 @@ settings = {
     'static_url_prefix': '/static/',
     'static_handler_class': ContorlledCacheStaticFilesHandler,
     'static_path': options.static_path,
-    'login_url': '/login/',
+    'login_url': '/login',
 }
 
 # URL schemas to RequestHandler classes mapping
@@ -350,7 +368,9 @@ application = tornado.web.Application([
     (r"/api/v1/send_scpi", SCPICommandHandler),
     (r"/api/v1/module_ui_controls", ModuleUIHandler),
     (r"/admin", AdminConsoleHandler),
-    (r"/logout", LogoutHandler),
+    (r"/logout", auth.LogoutHandler),
+    (r"/login", auth.LoginHandler),
+    (r"/test", TestHandler),
     (r"/login", LoginHandler),
 ], **settings)
 

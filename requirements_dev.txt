@@ -1,7 +1,0 @@
-# this is modules required for development of Easy Phi web application
-# you still need to install dependecies from production.txt
-# sudo pip install -r requirements/production.txt
-# sudo pip install -r requirements/dev.txt
-
-coverage
-mkdocs

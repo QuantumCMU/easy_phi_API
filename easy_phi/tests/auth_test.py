@@ -2,9 +2,11 @@
 import base64
 
 import tornado.testing
+from tornado.test.util import unittest
 from tornado.options import options
 
 from easy_phi import app
+from easy_phi import auth
 
 
 class AdminConsoleAccessTest(tornado.testing.AsyncHTTPTestCase):
@@ -55,3 +57,12 @@ class AdminConsoleAccessTest(tornado.testing.AsyncHTTPTestCase):
                               auth_password=options.admin_password)
 
         self.failIf(response.error)
+
+
+class AuthUtilsTest(unittest.TestCase):
+
+    def test_generate_token(self):
+        token1 = auth.generate_token('foo_user')
+        token2 = auth.generate_token('bar_user')
+        self.assertEqual(token1, auth.generate_token('foo_user'))
+        self.assertEqual(token2, auth.generate_token('bar_user'))

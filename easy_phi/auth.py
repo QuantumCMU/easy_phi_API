@@ -11,16 +11,23 @@ credentials, so we need an abstraction layer, implemented in this file.
 """
 import base64
 import functools
+import uuid
+import subprocess
 
+import tornado.web
+import tornado.util
 from tornado.options import options, define
-
 
 define('admin_login', default='easy-phi')
 define('admin_password', default='easy-phi')
-define('security_backend', 'easy_phi.auth.dummy')
+define('session_cookie_name', 'api_token')
+define('security_backend', default='easy_phi.auth.DummyLoginHandler')
 define('security_backends', default=[
-    'easy_phi.auth.dummy'
+    'easy_phi.auth.DummyLoginHandler',
+    # 'easy_phi.auth.HTTPBasicAuthLoginHandler',
 ])
+
+define('dummy_security_default_username', 'Anonymous')
 
 # map of api_tokens to authenticated users
 # i.e. active_tokens[hash_value] = username
@@ -41,13 +48,51 @@ def validate_api_token(token):
     :return boolean, True if api token is associated with authenticated user"""
 
     global active_tokens
-    # TODO: remove debug auth after configurable security is implemented
-    return token in active_tokens or options.debug
+
+    return token in active_tokens
 
 
 def user_by_token(token):
     global active_tokens
     return active_tokens.get(token)
+
+
+def _token_generator():
+    """Wrapper function to hide real secret value used to generate api_tokens
+    """
+    mac = uuid.getnode()
+    try:
+        fh = open('/etc/fstab', 'r')
+        fstab = fh.read(4096)
+        fh.close()
+    except IOError:
+        fstab = uuid.uuid1(clock_seq=0).hex
+
+    try:
+        hostid = subprocess.check_output('hostid')
+    except OSError:
+        hostid = uuid.uuid1(clock_seq=0).hex
+
+    _secret = str(hash(str(mac) + fstab + hostid))
+
+    def _generate_token(username):
+        """Generate unique and unpredictable token from username and intrinsic
+        platform info (MAC addr, filesystem UUIDs, hostid)
+        CPUID is not used since it can be predicted from HW configuration
+
+        Generating random number and storing it somewhere in the system would
+        be more secure but won't work on read-only filesystems
+        """
+
+        # example of resulting hash_str: '-0x4284bb3d4a3e36ac'
+        hash_str = hex(hash(str(username) + _secret))
+        # return only hex part
+        return hash_str.split('x', 1)[1]
+
+    return _generate_token
+
+
+generate_token = _token_generator()
 
 
 def register_token(user, api_token):
@@ -90,6 +135,7 @@ def http_basic(auth_func):
 
     Admin login is performed using HTTP Basic authentication
     """
+
     def decorator(method):
         @functools.wraps(method)
         def wrapper(self, *args, **kwargs):
@@ -101,10 +147,83 @@ def http_basic(auth_func):
                 self.finish("Authentication required")
             else:
                 method(self, *args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
-class Dummy(tornado.web.RequestHandler):
+class LogoutHandler(tornado.web.RequestHandler):
+    """ Universal logout handler for all security backends
+
+    Actually, it just deletes user cookie
+    """
+
+    def get(self):
+        self.clear_cookie(options.session_cookie_name)
+        self.redirect('/')
+
+
+class LoginHandler(tornado.web.RequestHandler, tornado.util.Configurable):
+    """ Special class to support configurable security backend """
+
+    @classmethod
+    def configurable_base(cls):
+        # it has to be LoginHandler, otherwise configurable_default is not used
+        return LoginHandler
+
+    @classmethod
+    def configurable_default(cls):
+        # we know that options.security_backend is a string, not a class
+        # need to import it first
+        return tornado.util.import_object(options.security_backend)
+
+    def __new__(cls, *args, **kwargs):
+        """ Well, it's a long story.
+        tornado.util.Configurable uses initialize() instead of __init__ to
+        support singleton magic in AsyncHTTPClient (see comments in
+        tornado.util.Configurable.__new__ for details)
+
+        tornado.web.RequestHandler expects parameters to be passed to __init__()
+        It also has empty initialize() method without parameters.
+
+        Here we don't depend on initialize(), and we need to call handler's
+        __init__().  here is why __new__ is overridden  to call __init__
+        and initialize() is extended to accept args and kwargs
+        """
+        instance = super(LoginHandler, cls).__new__(cls, *args, **kwargs)
+        instance.__init__(*args, **kwargs)
+        return instance
+
+    def initialize(self, *args, **kwargs):
+        pass
+
+
+class DummyLoginHandler(LoginHandler):
+    """ Dummy security backend - accept everybody without questions """
+
+    def get(self):
+        """Dummy backend will silently accept user
+        General workflow:
+            - Authenticate user
+            - Generate api_token from username using consistent hashing
+            - register token
+            - set auth cookie - it serves both api token and session cookie
+        """
+        # But since it is a dummy handler, we assign empty api token and
+        # default username for everybody
+        register_token(options.dummy_security_default_username, '')
+        self.set_cookie("api_token", '')
+        next_url = self.get_argument('next') or \
+            self.request.headers.get('Referer') or \
+            '/'
+        self.redirect(next_url)
+
+    post = get
+
+
+class HTTPBasicAuthLoginHandler(LoginHandler):
+    """ HTTP Basic auth security backend - request username and password """
+
     def get(self):
         pass

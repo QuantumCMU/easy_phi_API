@@ -4,7 +4,6 @@
 import json
 import dicttoxml
 from xml.dom.minidom import parseString
-import uuid
 
 
 def format_conversion(chunk, fmt, debug=False):
@@ -57,6 +56,3 @@ def parse_scpi_command(raw_str):
     arg = "" or len(chunks) > 1 and chunks[1]
     remainder = "" or len(chunks) > 2 and chunks
     return cmd, arg, remainder
-
-def get_MAC_address():
-    return uuid.getnode()
