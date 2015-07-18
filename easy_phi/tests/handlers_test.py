@@ -3,6 +3,9 @@ import json
 
 import tornado.testing
 from tornado.options import options
+import tornado.websocket
+from tornado.websocket import websocket_connect
+from tornado import gen
 
 from easy_phi import app
 
@@ -219,3 +222,33 @@ class ModuleUIHandlerTest(BaseTestCase, tornado.testing.AsyncHTTPTestCase):
             "ModuleUI handler returned wrong content type "
             "('application/javascript' expected)"
         )
+
+
+class WebSocketBaseTestCase(tornado.testing.AsyncHTTPTestCase):
+    @gen.coroutine
+    def ws_connect(self, path, compression_options=None):
+        ws = yield websocket_connect(
+            'ws://127.0.0.1:%d%s' % (self.get_http_port(), path),
+            compression_options=compression_options)
+        raise gen.Return(ws)
+
+    @gen.coroutine
+    def close(self, ws):
+        """Close a websocket connection and wait for the server side.
+        If we don't wait here, there are sometimes leak warnings in the
+        tests.
+        """
+        ws.close()
+
+
+class WebSocketTest(WebSocketBaseTestCase):
+    def get_app(self):
+        return app.application
+
+    @tornado.testing.gen_test
+    def test_websocket_gen(self):
+        ws = yield self.ws_connect('/websocket')
+        ws.write_message('hello')
+        response = yield ws.read_message()
+        self.assertEqual(response, 'Echo:hello')
+        yield self.close(ws)

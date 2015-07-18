@@ -17,12 +17,14 @@ var ep = window['ep'] || {
     _api_token: '', // api_token to be used.
     _empty_slot_str: "Empty slot", // moved out of func for localization purposes
     _broadcast_slot: 0,
+    _ws: null, //WebSocket object
 
     init: function(base_url) {
         // TODO: set global ajax error handler
         if (base_url == null) {
             base_url = window.location.protocol + "//" +window.location.host;
         }
+
         ep.base_url = base_url;
 
         setInterval(function(){
@@ -53,8 +55,12 @@ var ep = window['ep'] || {
             $("#platform_info_slots").text(platform_info['slots']);
             ep.updateModuleList(); // manually update list of modules
 
-            // TODO: set websocket listener to update modules
-            // in websocket we expect slot id and module name
+            //Init WebSocket session
+            ep._ws = new WebSocket("ws://" + window.location.host + "/websocket");
+            ep._ws.onmessage = function (event) {
+                //Handle a message from WebSocket
+                ep._parseWSMessage(event.data);
+            }
 
             ep._username = get_cookie('username');
             ep._api_token = get_cookie('api_token');
@@ -108,7 +114,6 @@ var ep = window['ep'] || {
                     url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id,
                     type: 'DELETE'
                 });
-                lock_container.empty();
                 $(this).toggleClass("open", false);
                 return;
             }
@@ -116,25 +121,30 @@ var ep = window['ep'] || {
             // container is being opened
             var locked_by = lock_container.text();
             if (locked_by && locked_by != ep._username &&
-                locked_by != ep._username_alias &&
-                confirm("This module is used by " + locked_by + ". Do you " +
+                locked_by != ep._username_alias) {
+                 //Module is locked by someone. Prompt user to force unlock it
+                if (confirm("This module is used by " + locked_by + ". Do you " +
                         "want to force unlock it?")) {
-                // used by somebody - try force unlock
-                if ($.ajax({type: 'DELETE', async: false,
-                        url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id
-                        }).responseText != "OK") {
-                    alert("Failed to unlock module. Please try again");
-                    return;
-                }
-                // mark module as used
-                if ($.ajax({ type: 'POST', async: false,
-                        url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id
-                        }).responseText != "OK") {
-                    alert("Failed to acquire module lock. Please unlock and try again");
+                    // used by somebody - try force unlock
+                    if ($.ajax({type: 'DELETE', async: false,
+                            url: ep.base_url + "/api/v1/lock_module?format=plain&slot=" + slot_id
+                            }).responseText != "OK") {
+                        alert("Failed to unlock module. Please try again");
+                        return;
+                    }
+                } else {
+                    //User has not confirmed force unlock. Cancel the whole thing
                     return;
                 }
             }
-            lock_container.text(ep._username_alias);
+
+            // mark module as used
+            if ($.ajax({ type: 'POST', async: false,
+                    url: ep.base_url + "/api/v1/lock_module?format=plain&slot=" + slot_id
+                    }).responseText != "OK") {
+                alert("Failed to acquire module lock. Please unlock and try again");
+                return;
+            }
             $(this).toggleClass("open", true);
         });
     },
@@ -155,22 +165,8 @@ var ep = window['ep'] || {
                     * ports are not configured - add new slot dynamically */
                     ep._add_module(module_list_container, slot_id, ep._empty_slot_str);
                 }
-                // update module name in header
-                $("#module_name_" + slot_id).text(module_name || ep._empty_slot_str);
 
                 ep._updateModuleUI(slot_id, module_name);
-
-                // manually update lock status
-                if (module_name == null || slot_id==ep._broadcast_slot) {
-                    // Broadcast pseudo module
-                    ep._markUsedBy(slot_id, null);
-                }
-                else {
-                    ep._updateModuleLockStatus(slot_id, module_name);
-                }
-
-                // TODO: set websocket listener to monitor lock status
-
             });
         });
     },
@@ -185,7 +181,19 @@ var ep = window['ep'] || {
         // collapse module control panel
         control_panel.empty();
         // mark module inactive
-        header.removeClass("active");
+        header.removeClass("active open");
+        // update module name in header
+        $("#module_name_" + slot_id).text(module_name || ep._empty_slot_str);
+        // manually update lock status
+        if (module_name == null || slot_id==ep._broadcast_slot) {
+            // Broadcast pseudo module
+            ep._markUsedBy(slot_id, null);
+        } else {
+            $.get(ep.base_url+"/api/v1/lock_module?format=json&slot=" + slot_id,
+                function (used_by) {
+                    ep._markUsedBy(slot_id, used_by)
+                });
+        }
 
         if (module_name == null) return;
 
@@ -200,20 +208,45 @@ var ep = window['ep'] || {
         });
     },
 
-    _updateModuleLockStatus: function(slot_id) {
+    _updateModuleLockStatus: function(slot_id, used_by) {
         if (slot_id == ep._broadcast_slot) {
             // TODO: log warning
         }
         else {
-            $.get(ep.base_url+"/api/v1/lock_module?format=json&slot=" + slot_id,
-                function (username) {
-                    ep._markUsedBy(slot_id, username)
-                });
+            ep._markUsedBy(slot_id, used_by);
         }
     },
 
-    _markUsedBy: function(slot_id, username) {
-        // TODO: add GUI
+    _markUsedBy: function(slot_id, used_by) {
+        var lock_container = $("#module_header_"+slot_id).find(".module_lock");
+        if (used_by) {
+            lock_container.text(used_by);
+            lock_container.parent().toggleClass("open", false);
+        } else {
+            //Module is not locked by anyone
+            lock_container.empty();
+        }
+    },
+
+    _parseWSMessage: function (message) {
+        console.log("Message from ws: " + message);
+        var json = JSON.parse(message);
+        switch (json.msg_type) {
+            case 'MODULE_UPDATE':
+                //Request to update Module info has been received
+                ep._updateModuleUI(json.slot, json.module_name);
+                break;
+
+            case 'LOCK_UPDATE':
+                //Update lock status of the module
+                ep._updateModuleLockStatus(json.slot, json.used_by);
+                break;
+
+            case 'DATA_UPDATE':
+                //Log received data from module to the console
+                ep.log("Slot " + json.slot + ": Data received: " + json.data);
+                break;
+        }
     },
 
     log: function(message) {
