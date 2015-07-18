@@ -35,9 +35,8 @@ calls should also be authorized. At the same time, we don't want to use
 user password in API calls because it is not secure and does not work with
 third party backends, like OpenID. Instead, every user gets assigned API token,
 which is generated in consistent manner for every user. Once user logs in, 
-his token gets activated and can be used for API calls. When user logs out,
-hist token will stay the same but it will not be accepted anymore until user
-logs in again.
+his api token is activated and can be used for API calls. After user logs out,
+token will stay the same but it will not be accepted until user logs in again.
 
 There are three possible places where API handlers will look for api token.
 

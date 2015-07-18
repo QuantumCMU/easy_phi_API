@@ -318,7 +318,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     allow_broadcast = False
 
     def update_module(self, added, slot):
-        """Send update to clients indicating that module has been added/removed"""
+        """Send update to clients indicating that module has been added or
+        removed
+        """
         message = {
             'msg_type': 'MODULE_UPDATE',
             'slot': slot,
@@ -328,7 +330,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.write_message(message)
 
     def update_lock(self, slot, used_by):
-        """Send update to clients indicating that module has been locked/unlocked"""
+        """Send update to clients indicating that module has been locked or
+        unlocked
+        """
         message = {
             'msg_type': 'LOCK_UPDATE',
             'slot': slot,
@@ -358,7 +362,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         hwconf.callbacks.remove(self.update_module)
 
     def on_message(self, message):
-        """This method is for testing purposes and simply echoes received messages"""
+        """This method is for testing purposes and simply echoes received
+        messages
+        """
         self.write_message('Echo:' + message)
 
 
@@ -446,16 +452,17 @@ settings = {
 # URL schemas to RequestHandler classes mapping
 application = tornado.web.Application([
     (r"/", IndexPageHandler,),
-    (r"/api/v1/info", PlatformInfoHandler),
-    (r"/api/v1/module", ModuleInfoHandler),
-    (r"/api/v1/modules_list", ModulesListHandler),
-    (r"/api/v1/module_scpi_list", ListSCPICommandsHandler),
-    (r"/api/v1/lock_module", SelectModuleHandler),
-    (r"/api/v1/send_scpi", SCPICommandHandler),
-    (r"/api/v1/module_ui_controls", ModuleUIHandler),
-    (r"/admin", AdminConsoleHandler),
-    (r"/logout", auth.LogoutHandler),
-    (r"/login", auth.LoginHandler),
+    (r"/api/v1/info", PlatformInfoHandler, None, 'api_platform_info'),
+    (r"/api/v1/module", ModuleInfoHandler, None, 'api_module_info'),
+    (r"/api/v1/modules_list", ModulesListHandler, None, 'api_module_list'),
+    (r"/api/v1/module_scpi_list", ListSCPICommandsHandler, None,
+        'api_list_commands'),
+    (r"/api/v1/lock_module", SelectModuleHandler, None, 'api_select_module'),
+    (r"/api/v1/send_scpi", SCPICommandHandler, None, 'api_send_scpi'),
+    (r"/api/v1/module_ui_controls", ModuleUIHandler, None, 'api_widgets'),
+    (r"/admin", AdminConsoleHandler, None, 'admin'),
+    (r"/logout", auth.LogoutHandler, None, 'logout'),
+    (r"/login", auth.LoginHandler, None, 'login'),
     (r"/websocket", WebSocketHandler)
 ], **settings)
 

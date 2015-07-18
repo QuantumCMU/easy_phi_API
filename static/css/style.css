@@ -1,6 +1,19 @@
-/* TODO: copy reset here */
+/*=========================================
+*    YUI RESET
+*    http://yui.yahooapis.com/3.18.1/build/cssreset/cssreset-min.css
+YUI 3.18.1 (build f7e7bcb)
+Copyright 2014 Yahoo! Inc. All rights reserved.
+Licensed under the BSD License.
+http://yuilibrary.com/license/
+*=========================================*/
+
+html{color:#000;background:#FFF}body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td{margin:0;padding:0}table{border-collapse:collapse;border-spacing:0}fieldset,img{border:0}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal}ol,ul{list-style:none}caption,th{text-align:left}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal}q:before,q:after{content:''}abbr,acronym{border:0;font-variant:normal}sup{vertical-align:text-top}sub{vertical-align:text-bottom}input,textarea,select{font-family:inherit;font-size:inherit;font-weight:inherit;*font-size:100%}legend{color:#000}#yui3-css-stamp.cssreset{display:none}
+
+/*=========================================
+*        SIDE CONTENT CONTAINER
+*=========================================*/
 #platform_info_container {
-    position:absolute;
+    display:none;
     top:0;left:0;
     width:180px;
     margin: 5px;
@@ -16,15 +29,11 @@
 }
 #console_container {
     /* keep rest up to date with module container */
-    margin:auto;
-    width:80%;
-    min-width:500px;
-    max-width:800px;
     padding: 5px;
     text-align: left;
 }
 #console_clear_btn {
-    float:right;
+    margin: 0.3em 0;
 }
 #console_log {
     font-family:"Courier New", courier, monospace;
@@ -39,22 +48,41 @@
     resize:none;
     padding: 5px;
 }
+
+/*=========================================
+*        HEADER
+*=========================================*/
+#toolbar {
+    padding:1em 0;
+    text-align:left;
+}
+#api_token:not(:empty):before {
+    content: "Your api token is ";
+}
+#toolbox {
+    float:right;
+}
+#toolbox li {
+    display:inline;
+}
+
 /*=========================================
 *        MAIN CONTENT CONTAINER
 *=========================================*/
 main {
     text-align: center;
-}
-/*=========================================
-*        MODULE LIST CONTAINER
-*=========================================*/
-#modules_list {
     margin:auto;
     width:80%;
     min-width:500px;
     max-width:800px;
     height: 100%;
     padding: 5px;
+}
+
+/*=========================================
+*        MODULE LIST CONTAINER
+*=========================================*/
+#modules_list {
     text-align: left;
 }
 /*-------------------------------------------
@@ -126,7 +154,8 @@ footer {
     position: fixed;
     text-align: right;
     bottom:0;
-    height: 5%;
+    height: 2em;
+    background-color:white;
     margin: 0 10px;
     border-top: 2px solid black;
     width:95%;

@@ -13,20 +13,13 @@
     {% end %}
 </header>
 
-<aside id="platform_info_container">
+<aside id="aside">
     {% block aside %}  {% end %}
 </aside>
 
 <main>
-    <div id="modules_list">
-        <noscript>This page does not work without JavaScript.</noscript>
-    </div>
-
-    <div id="console_container">
-        <label for="console_log">System log:</label>
-        <button id="console_clear_btn">Clear</button>
-        <div id="console_log"></div>
-    </div>
+    {% block main %}
+    {% end %}
 </main>
 
 <footer>

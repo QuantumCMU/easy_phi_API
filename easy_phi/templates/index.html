@@ -1,37 +1,45 @@
 {% extends "base.html" %}
 {% block css %}
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.18.1/build/cssreset/cssreset-min.css">
     <link rel="stylesheet" href="../static/css/style.css" type="text/css" media="screen, projection">
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.min.css"
           type="text/css" media="screen, projection">
 {% end %}
 
 {% block header %}
-        <!-- api key, login/logout and links to Admin functions go here -->
 {% end %}
 
 {% block aside %}
-    Platform info:
-    <ul id="platform_info">
-        <li>Vendor: <span id="platform_info_vendor">Loading</span></li>
-        <li>Software version: <span id="platform_info_sw_version">Loading</span></li>
-        <li>Hardware version: <span id="platform_info_hw_version">Loading</span></li>
-        <!--li>Supported API versions: <span id="platform_info_versions">Loading</span></li-->
-        <li>Number of slots: <span id="platform_info_slots">0</span></li>
-        <li>Number of modules: <span id="platform_info_modules">0</span></li>
-        <li>Modules in use: <span id="platform_info_modules_in_use">0</span></li>
-    </ul>
+    <div id="platform_info_container" title="Platform info">
+        <ul id="platform_info">
+            <li>Vendor: <span id="platform_info_vendor">Loading</span></li>
+            <li>Software version: <span id="platform_info_sw_version">Loading</span></li>
+            <li>Hardware version: <span id="platform_info_hw_version">Loading</span></li>
+            <!--li>Supported API versions: <span id="platform_info_versions">Loading</span></li-->
+            <li>Number of slots: <span id="platform_info_slots">0</span></li>
+            <li>Number of modules: <span id="platform_info_modules">0</span></li>
+            <li>Modules in use: <span id="platform_info_modules_in_use">0</span></li>
+        </ul>
+    </div>
 {% end %}
 
 {% block main %}
+    <div id="toolbar">
+        Welcome, <span id="username">%username%</span>.
+        <span id="api_token"></span>
+        <ul id="toolbox">
+            <li><a href="javascript:void(0);" id="platform_info_toggler">Platform info</a></li>
+            <li><a href="/admin">Admin console</a></li>
+            <li><a href="/logout">Logout</a></li>
+        </ul>
+    </div>
     <div id="modules_list">
         <noscript>This page does not work without JavaScript.</noscript>
     </div>
 
     <div id="console_container">
         <label for="console_log">System log:</label>
-        <button id="console_clear_btn">Clear</button>
         <div id="console_log"></div>
+        <button id="console_clear_btn">Clear</button>
     </div>
 {% end %}
 

@@ -135,7 +135,9 @@ def register_token(user, api_token):
 
 
 def unregister_token(api_token):
-    del(active_tokens[api_token])
+    global active_tokens
+    if api_token in active_tokens:
+        del(active_tokens[api_token])
 
 
 def admin_auth(user, password):

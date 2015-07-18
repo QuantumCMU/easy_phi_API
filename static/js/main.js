@@ -64,6 +64,12 @@ var ep = window['ep'] || {
 
             ep._username = get_cookie('username');
             ep._api_token = get_cookie('api_token');
+            $('#username').text(ep._username);
+            $('#api_token').text(ep.api_token);
+
+            $('#platform_info_toggler').click(function(){
+                $("#platform_info_container").dialog()
+            }).toggle(true);
         });
     },
 
