@@ -17,6 +17,8 @@ import subprocess
 
 import tornado.web
 import tornado.util
+import tornado.auth
+import tornado.gen
 from tornado.options import options, define
 
 define('admin_login', default='easy-phi')
@@ -228,19 +230,18 @@ class LoginHandler(tornado.web.RequestHandler, tornado.util.Configurable):
     def authenticate(self, username, token=None):
         """ Helper method to do user authentication in a uniform way
         Call this method from .get() or .post() methods in login handler
-
-        General workflow:
-            - check if user not authenticated already
-            - Authenticate user
-            - Generate api_token from username using consistent hashing
-            - register token
-            - set auth cookie - it serves both api token and session cookie
         """
         if token is None:
             token = generate_token(username)
         register_token(username, token)
         self.set_cookie(options.session_cookie_name, token,
                         expires_days=options.session_cookie_ttl)
+
+        # Username cookie is not used for authentication. It is only a
+        # convenience shortcut to display username in web UI
+        self.set_cookie('username', username,
+                        expires_days=options.session_cookie_ttl)
+
         next_url = self.get_argument('next') or \
             self.request.headers.get('Referer') or \
             '/'
@@ -250,6 +251,7 @@ class LoginHandler(tornado.web.RequestHandler, tornado.util.Configurable):
 class DummyLoginHandler(LoginHandler):
     """ Dummy security backend - accept everybody without questions """
 
+    @tornado.gen.coroutine
     def get(self):
         """Dummy backend will silently accept any user without password """
         # But since it is a dummy handler, we assign empty api token and
@@ -274,14 +276,32 @@ def _check_password_from_file(username, password):
 class PasswordAuthLoginHandler(LoginHandler):
     """ HTTP Basic auth security backend - request username and password """
 
+    @tornado.gen.coroutine
     @http_basic(_check_password_from_file)
     def get(self):
         user, pwd = parse_http_basic_auth(self.request)
         self.authenticate(user)
 
 
-class GoogleLoginHandler(LoginHandler):
+class GoogleLoginHandler(LoginHandler, tornado.auth.GoogleOAuth2Mixin):
     """ Google security backend - require Google login with configured domain"""
 
+
+    @tornado.gen.coroutine
     def get(self):
-        pass
+        """
+        For more details check
+            http://tornado.readthedocs.org/en/latest/auth.html
+        """
+        if self.get_argument('code', False):
+            user = yield self.get_authenticated_user(
+                redirect_uri='http://your.site.com/auth/google',
+                code=self.get_argument('code'))
+            # Save the user with e.g. set_secure_cookie
+        else:
+            yield self.authorize_redirect(
+                redirect_uri='http://your.site.com/auth/google',
+                client_id=self.settings['google_oauth']['key'],
+                scope=['profile', 'email'],
+                response_type='code',
+                extra_params={'approval_prompt': 'auto'})

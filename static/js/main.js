@@ -11,10 +11,10 @@ var ep = window['ep'] || {
     base_url: '',
     slots: 0,
     info: null,
-    _username: 'Somebody', // User name from auth, updated at init()
+    _username: null, // User name from auth, updated at init()
     _username_alias: 'You', // Friendly name to address user in GUI.
                             // It is here for localization purposes
-    _api_token: '', // api_token to be used. TODO: figure out how to transfer it
+    _api_token: '', // api_token to be used.
     _empty_slot_str: "Empty slot", // moved out of func for localization purposes
     _broadcast_slot: 0,
 
@@ -35,6 +35,15 @@ var ep = window['ep'] || {
                 $(".module_lock:not(:empty)").length);
         }, 1000);
 
+        var get_cookie = function(key) {
+            // slow and dirty, but we need it only couple times
+            var result;
+            return (result = new RegExp(
+                    '(?:^|; )'+encodeURIComponent(key)+'=([^;]*)').exec(
+                        document.cookie)
+                ) ? (result[1]) : null;
+        };
+
         //get Platform info
         $.get(ep.base_url + "/api/v1/info?format=json", function(platform_info){
             ep.slots = platform_info.slots;
@@ -47,8 +56,8 @@ var ep = window['ep'] || {
             // TODO: set websocket listener to update modules
             // in websocket we expect slot id and module name
 
-            // TODO: update ep._username
-            // TODO: update ep._api_token
+            ep._username = get_cookie('username');
+            ep._api_token = get_cookie('api_token');
         });
     },
 
@@ -97,7 +106,7 @@ var ep = window['ep'] || {
             if ($(this).hasClass("open")) {
                 $.ajax({
                     url: ep.base_url + "/api/v1/lock_module?format=json&slot=" + slot_id,
-                    type: 'DELETE',
+                    type: 'DELETE'
                 });
                 lock_container.empty();
                 $(this).toggleClass("open", false);

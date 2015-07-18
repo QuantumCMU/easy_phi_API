@@ -11,14 +11,12 @@ class BaseTestCase(object):
     """ common setup procedure for all API calls, e.g. creating api token
     """
     headers = None
-    api_token = ''
 
     def get_app(self):
         options.security_backend = 'easy_phi.auth.DummyLoginHandler'
-        self.headers = None
         # just and example how to set cookie:
         # self.headers = {"Cookie": '='.join((options.session_cookie_name,
-        #                                    self.api_token))}
+        #                                    api_token))}
         return app.application
 
 

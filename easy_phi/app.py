@@ -10,6 +10,8 @@ import time
 import tornado.ioloop
 import tornado.httpserver
 import tornado.web
+import tornado.gen
+
 from tornado.options import options, define
 from tornado.options import parse_config_file, parse_command_line
 
@@ -23,6 +25,8 @@ from easy_phi import __version__ as VERSION
 
 # configuration defaults
 define("conf_path", default="/etc/easy_phi.conf")
+define("template_path",
+       default=os.path.join(os.path.dirname(__file__), 'templates'))
 define("static_path",
        default=os.path.join(os.path.dirname(__file__), '..', 'static'))
 define("server_port", default=8000)
@@ -235,7 +239,8 @@ class SCPICommandHandler(ModuleHandler):
         # Check user lock status
         used_by = getattr(self.module, 'used_by', None)
         # auth.user_by_token(None) returns None, in case selection isn't used
-        if used_by != auth.user_by_token(self.api_token):
+        # This check is not applicable to broadcast module (slot 0)
+        if self.slot and used_by != auth.user_by_token(self.api_token):
             self.set_status(409)  # Conflict
             self.finish({
                 'error': "Module is used by {0}. If you need this module, you "
@@ -302,13 +307,16 @@ class BaseWebHandler(tornado.web.RequestHandler):
             self.get_cookie(options.session_cookie_name))
 
 
-class TestHandler(BaseWebHandler):
-    """Placeholder for Admin Console web-page"""
-
+class IndexPageHandler(BaseWebHandler):
     @tornado.web.authenticated
+    @tornado.gen.coroutine
     def get(self):
-        self.write("Welcome, {user}. This page is coming soon..".format(
-            user=self.get_current_user()))
+        # Web interface (except admin console is built to support static
+        # templates, so it does not use any template variables. All information
+        # in web UI is rendered by means of REST API
+        # The only reason to have separate handler instead of redirect to static
+        # file is to wrap .get() method in authenticated decorator
+        self.render("index.html")
 
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
@@ -356,6 +364,8 @@ else:
 if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
     # even if default security backend is dummy, user still has to visit auth
     # page before api requests will be accepted. Here is a workaround for that
+    # This is only to enable api calls with dummy backend without opening web
+    # interface, index page will perform authorization
     auth.register_token(options.security_dummy_username, '')
 
 # it should start after options already parsed, as hwconf depends on certain
@@ -368,13 +378,13 @@ settings = {
     'static_url_prefix': '/static/',
     'static_handler_class': ContorlledCacheStaticFilesHandler,
     'static_path': options.static_path,
+    'template_path': options.template_path,
     'login_url': '/login',
 }
 
 # URL schemas to RequestHandler classes mapping
 application = tornado.web.Application([
-    (r"/", tornado.web.RedirectHandler,
-        {"url": '/static/index.html'}),
+    (r"/", IndexPageHandler,),
     (r"/api/v1/info", PlatformInfoHandler),
     (r"/api/v1/module", ModuleInfoHandler),
     (r"/api/v1/modules_list", ModulesListHandler),
@@ -385,7 +395,6 @@ application = tornado.web.Application([
     (r"/admin", AdminConsoleHandler),
     (r"/logout", auth.LogoutHandler),
     (r"/login", auth.LoginHandler),
-    (r"/test", TestHandler),
 ], **settings)
 
 
