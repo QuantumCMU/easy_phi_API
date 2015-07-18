@@ -11,6 +11,7 @@ credentials, so we need an abstraction layer, implemented in this file.
 """
 import base64
 import functools
+import hashlib
 import uuid
 import subprocess
 
@@ -20,18 +21,31 @@ from tornado.options import options, define
 
 define('admin_login', default='easy-phi')
 define('admin_password', default='easy-phi')
+
+define('secret', '')
 define('session_cookie_name', 'api_token')
+define('session_cookie_ttl', 30)
+define('session_cookie_length', 16)
+
 define('security_backend', default='easy_phi.auth.DummyLoginHandler')
 define('security_backends', default=[
     'easy_phi.auth.DummyLoginHandler',
-    # 'easy_phi.auth.HTTPBasicAuthLoginHandler',
+    'easy_phi.auth.PasswordAuthLoginHandler',
+    'easy_phi.auth.GoogleLoginHandler',
 ])
 
-define('dummy_security_default_username', 'Anonymous')
+# DummyLoginHandler settings
+define('security_dummy_username', 'Anonymous')
+
+# PasswordAuthLoginHandler settings
+define('security_passwords_file_path', '/etc/easy_phi/passwords')
+
+# GoogleLoginHandler settings
+define('security_google_login_domain', 'google.com')
 
 # map of api_tokens to authenticated users
 # i.e. active_tokens[hash_value] = username
-active_tokens = {'temporary_token': 'Somebody'}
+active_tokens = {}
 
 
 def validate_api_token(token):
@@ -60,20 +74,30 @@ def user_by_token(token):
 def _token_generator():
     """Wrapper function to hide real secret value used to generate api_tokens
     """
-    mac = uuid.getnode()
-    try:
-        fh = open('/etc/fstab', 'r')
-        fstab = fh.read(4096)
-        fh.close()
-    except IOError:
-        fstab = uuid.uuid1(clock_seq=0).hex
+    _secret = options.secret
 
-    try:
-        hostid = subprocess.check_output('hostid')
-    except OSError:
-        hostid = uuid.uuid1(clock_seq=0).hex
+    if not _secret:
+        m = hashlib.md5()
+        m.update(uuid.getnode().__hex__())  # MAC address
+        try:
+            fh = open('/etc/fstab', 'r')
+            fstab = fh.read(4096)
+            fh.close()
+        except IOError:
+            fstab = uuid.uuid1(clock_seq=0).hex
 
-    _secret = str(hash(str(mac) + fstab + hostid))
+        m.update("\n".join(  # use only non-empty, non-comment lines
+            filter(lambda x: x,
+                 (l.split("#", 1)[0].strip() for l in fstab.split('\n')))))
+
+        try:
+            hostid = subprocess.check_output('hostid')
+        except OSError:
+            # 4 chosen by a fair dice roll. Guaranteed to be random :)
+            hostid = uuid.uuid1(clock_seq=4).hex
+        m.update(hostid)
+
+        _secret = m.hexdigest()
 
     def _generate_token(username):
         """Generate unique and unpredictable token from username and intrinsic
@@ -84,10 +108,11 @@ def _token_generator():
         be more secure but won't work on read-only filesystems
         """
 
-        # example of resulting hash_str: '-0x4284bb3d4a3e36ac'
-        hash_str = hex(hash(str(username) + _secret))
+        m = hashlib.md5()
+        m.update(str(username))
+        m.update(_secret)
         # return only hex part
-        return hash_str.split('x', 1)[1]
+        return m.hexdigest()[:options.session_cookie_length]
 
     return _generate_token
 
@@ -105,6 +130,10 @@ def register_token(user, api_token):
     """
     global active_tokens
     active_tokens[api_token] = user
+
+
+def unregister_token(api_token):
+    del(active_tokens[api_token])
 
 
 def admin_auth(user, password):
@@ -154,12 +183,10 @@ def http_basic(auth_func):
 
 
 class LogoutHandler(tornado.web.RequestHandler):
-    """ Universal logout handler for all security backends
-
-    Actually, it just deletes user cookie
-    """
+    """ Universal logout handler for all security backends """
 
     def get(self):
+        unregister_token(options.session_cookie_name)
         self.clear_cookie(options.session_cookie_name)
         self.redirect('/')
 
@@ -198,32 +225,63 @@ class LoginHandler(tornado.web.RequestHandler, tornado.util.Configurable):
     def initialize(self, *args, **kwargs):
         pass
 
+    def authenticate(self, username, token=None):
+        """ Helper method to do user authentication in a uniform way
+        Call this method from .get() or .post() methods in login handler
 
-class DummyLoginHandler(LoginHandler):
-    """ Dummy security backend - accept everybody without questions """
-
-    def get(self):
-        """Dummy backend will silently accept user
         General workflow:
+            - check if user not authenticated already
             - Authenticate user
             - Generate api_token from username using consistent hashing
             - register token
             - set auth cookie - it serves both api token and session cookie
         """
-        # But since it is a dummy handler, we assign empty api token and
-        # default username for everybody
-        register_token(options.dummy_security_default_username, '')
-        self.set_cookie("api_token", '')
+        if token is None:
+            token = generate_token(username)
+        register_token(username, token)
+        self.set_cookie(options.session_cookie_name, token,
+                        expires_days=options.session_cookie_ttl)
         next_url = self.get_argument('next') or \
             self.request.headers.get('Referer') or \
             '/'
         self.redirect(next_url)
 
+
+class DummyLoginHandler(LoginHandler):
+    """ Dummy security backend - accept everybody without questions """
+
+    def get(self):
+        """Dummy backend will silently accept any user without password """
+        # But since it is a dummy handler, we assign empty api token and
+        # default username for everybody
+        self.authenticate(options.security_dummy_username, '')
+
     post = get
 
 
-class HTTPBasicAuthLoginHandler(LoginHandler):
+def _check_password_from_file(username, password):
+    """ Utility function for password security backend
+    Workflow:
+        get salt from file
+        calculate password hash using salt
+        compare
+    WARNING: for security reasons hashes in file should be different from tokens
+    """
+    # TODO: implement this method
+    return True
+
+
+class PasswordAuthLoginHandler(LoginHandler):
     """ HTTP Basic auth security backend - request username and password """
+
+    @http_basic(_check_password_from_file)
+    def get(self):
+        user, pwd = parse_http_basic_auth(self.request)
+        self.authenticate(user)
+
+
+class GoogleLoginHandler(LoginHandler):
+    """ Google security backend - require Google login with configured domain"""
 
     def get(self):
         pass

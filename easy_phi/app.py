@@ -13,13 +13,13 @@ import tornado.web
 from tornado.options import options, define
 from tornado.options import parse_config_file, parse_command_line
 
-import hwconf
-import auth
-import utils
-import scpi2widgets
+from easy_phi import hwconf
+from easy_phi import auth
+from easy_phi import utils
+from easy_phi import scpi2widgets
 
 # whenever you change version, please update setup.py as well
-VERSION = "0.2.6"
+from easy_phi import __version__ as VERSION
 
 # configuration defaults
 define("conf_path", default="/etc/easy_phi.conf")
@@ -46,7 +46,7 @@ class APIHandler(tornado.web.RequestHandler):
     def prepare(self):
         """ Look for API token in request
         API token is looked in following order:
-            - cookie 'api_token'
+            - session cookie (to support access from web interface)
             - HTTP Basic auth password, if username is api_token
             - GET request variable api_token
         """
@@ -58,23 +58,18 @@ class APIHandler(tornado.web.RequestHandler):
                 api_token = pwd
 
         if api_token is None:
-            api_token = self.get_argument('api_token')
+            api_token = self.get_argument('api_token', '')
 
-        if api_token is None:
+        if not auth.validate_api_token(api_token):
             self.set_status(401)
-            self.finish({"error": "api_token is missing. You can pass it in "
-                                  "request GET parameters, cookie or HTTP "
-                                  "Basic auth credentials"
+            self.finish({"error": "api_token is missing or invalid. You can "
+                                  "pass api token in request GET parameters, "
+                                  "cookie or HTTP. To get api token please "
+                                  "login and check api token in your profile"
                          })
             return
-        elif api_token not in auth.active_tokens:
-            self.set_status(401)
-            self.finish({"error": "api_token is invalid. Please login and check"
-                                  " api token at your profile"
-                         })
-            return
-        else:
-            self.api_token = api_token
+
+        self.api_token = api_token
 
     def data_received(self, chunk):
         # to get rid of annoying pylint message about not implemented
@@ -301,6 +296,21 @@ class ModuleUIHandler(ModuleHandler):
             )
 
 
+class BaseWebHandler(tornado.web.RequestHandler):
+    def get_current_user(self):
+        return auth.user_by_token(
+            self.get_cookie(options.session_cookie_name))
+
+
+class TestHandler(BaseWebHandler):
+    """Placeholder for Admin Console web-page"""
+
+    @tornado.web.authenticated
+    def get(self):
+        self.write("Welcome, {user}. This page is coming soon..".format(
+            user=self.get_current_user()))
+
+
 class AdminConsoleHandler(tornado.web.RequestHandler):
     """Placeholder for Admin Console web-page"""
 
@@ -343,6 +353,11 @@ else:
     except IOError:  # configuration file doesn't exist, use defaults
         pass
 
+if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
+    # even if default security backend is dummy, user still has to visit auth
+    # page before api requests will be accepted. Here is a workaround for that
+    auth.register_token(options.security_dummy_username, '')
+
 # it should start after options already parsed, as hwconf depends on certain
 # options like ports configurations, timeouts etc
 hwconf.start()
@@ -371,7 +386,6 @@ application = tornado.web.Application([
     (r"/logout", auth.LogoutHandler),
     (r"/login", auth.LoginHandler),
     (r"/test", TestHandler),
-    (r"/login", LoginHandler),
 ], **settings)
 
 
