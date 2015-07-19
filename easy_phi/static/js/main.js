@@ -32,6 +32,8 @@ var ep = window['ep'] || {
                 ) ? (result[1]) : null;
         };
 
+        ep._ws = new WebSocket("ws://" + window.location.host + "/websocket");
+
         //get Platform info
         $.get(ep.base_url + "/api/v1/info?format=json", function(platform_info){
             ep.slots = platform_info.slots;
@@ -41,18 +43,15 @@ var ep = window['ep'] || {
             $("#platform_info_slots").text(platform_info['slots']);
 
             $('#platform_info_toggler').click(function(){
-                $("#platform_info_container").dialog()
+                $("#platform_info_modules").text($("header.active").length-1);
+                $("#platform_info_modules_in_use").text(
+                    $(".module_lock:not(:empty)").length);
+                $("#platform_info_container").dialog();
             }).toggle(true);
+
         });
 
         ep.updateModuleList(); // manually update list of modules
-
-        //Init WebSocket session
-        ep._ws = new WebSocket("ws://" + window.location.host + "/websocket");
-        ep._ws.onmessage = function (event) {
-            //Handle a message from WebSocket
-            ep._parseWSMessage(event.data);
-        }
 
         ep._username = get_cookie('username');
         ep._api_token = get_cookie('api_token');
@@ -146,26 +145,17 @@ var ep = window['ep'] || {
         // create containers for modules by number of slots in this platform
         var module_list_container = $('#modules_list');
         module_list_container.empty();
-        // ep.slots + 1 because of Broadcast module in slot 0
-        for (var i=0; i<ep.slots+1; i++)
-            ep._add_module(module_list_container, i, ep._empty_slot_str);
 
         // get list of modules and update created containers
         $.get(ep.base_url+"/api/v1/modules_list?format=json", function(modules){
-
             modules.forEach(function(module_name, slot_id) {
-                if (slot_id > ep.slots) {
-                    /* module plugged through standalone adapter or platform
-                    * ports are not configured - add new slot dynamically */
-                    ep._add_module(module_list_container, slot_id, ep._empty_slot_str);
-                }
-
+                ep._add_module(module_list_container, slot_id, ep._empty_slot_str);
                 ep._updateModuleUI(slot_id, module_name);
             });
 
-            $("#platform_info_modules").text($("header.active").length-1);
-            $("#platform_info_modules_in_use").text(
-                $(".module_lock:not(:empty)").length);
+            // Websocket handler assigned after module list updated manually to
+            // evade race condition
+            ep._ws.onmessage = ep._parseWSMessage;
         });
     },
 
@@ -226,21 +216,19 @@ var ep = window['ep'] || {
         }
     },
 
-    _parseWSMessage: function (message) {
+    _parseWSMessage: function (event) {
+        var message = event.data;
         console.log("Message from ws: " + message);
         var json = JSON.parse(message);
         switch (json.msg_type) {
             case 'MODULE_UPDATE':
                 //Request to update Module info has been received
                 ep._updateModuleUI(json.slot, json.module_name);
-                $("#platform_info_modules").text($("header.active").length-1);
                 break;
 
             case 'LOCK_UPDATE':
                 //Update lock status of the module
                 ep._updateModuleLockStatus(json.slot, json.used_by);
-                $("#platform_info_modules_in_use").text(
-                    $(".module_lock:not(:empty)").length);
                 break;
 
             case 'DATA_UPDATE':

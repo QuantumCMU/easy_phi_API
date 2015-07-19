@@ -3,6 +3,11 @@
 
 from setuptools import setup
 
+# TODO: add meaningful long description
+# First, write it to Readme.md
+# then, copy it here and document in process to transfer all Readme updates
+long_description = "Software for test measurement equipment platform."
+
 # options reference: https://docs.python.org/2/distutils/
 setup(
     name="easy_phi",
@@ -10,7 +15,7 @@ setup(
     version="0.2.6",
     license="GPL v3.0",
     description='Easy Phi project web application',
-    long_description="Software for test measurement equipment platform.",
+    long_description=long_description,
     author='Team Quantum',
     author_email='shadeless@ya.ru',
     url='https://github.com/QuantumCMU/easy_phi_API',
@@ -37,6 +42,13 @@ setup(
     package_data={
         'scripts': ['*'],
     },
-    install_requires=['tornado', 'pyudev', 'pyserial', 'dicttoxml'],
+    install_requires=[
+        'tornado',
+        'pyudev',
+        'pyserial',
+        'dicttoxml',
+        'pkgtools',
+        'pip'
+    ],
     # TODO: add unit tests
 )

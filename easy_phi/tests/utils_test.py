@@ -73,3 +73,8 @@ class FormatConversionsTest(unittest.TestCase):
         response_text, ctype = \
             utils.format_conversion("Hello world", 'json')
         self.assertEqual("application/json", ctype)
+
+    def test_get_latest_pypi_version(self):
+        from easy_phi import __version__ as version
+        release = utils.get_latest_pypi_version()
+        self.assertGreaterEqual(version, release)

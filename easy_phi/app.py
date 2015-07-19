@@ -6,6 +6,7 @@ This file contains Web Application
 import os
 import json
 import time
+import pip
 
 import tornado.ioloop
 import tornado.httpserver
@@ -22,16 +23,15 @@ from easy_phi import utils
 from easy_phi import scpi2widgets
 
 # whenever you change version, please update setup.py as well
-from easy_phi import __version__ as VERSION
+from easy_phi import __version__, __project__
 
 # configuration defaults
 define("conf_path", default="/etc/easy_phi.conf")
 define("template_path",
        default=os.path.join(os.path.dirname(__file__), 'templates'))
-define("static_path",
-       default=os.path.join(os.path.dirname(__file__), '..', 'static'))
+define("static_path", default=os.path.join(os.path.dirname(__file__), 'static'))
 define("server_port", default=8000)
-define("sw_version", default=VERSION)
+define("sw_version", default=__version__)
 define("hw_version", default='N/A')
 define("vendor", type=str)
 define("welcome_message", default="")
@@ -210,14 +210,15 @@ class SelectModuleHandler(ModuleHandler):
         used_by = getattr(self.module, 'used_by', None)
         if used_by is not None:
             self.set_status(400)
-            self.write({'error': "Module is used by {0}. If you need this module, "
-                                 "you might force unlock it by issuing DELETE "
-                                 "request first.".format(used_by)})
+            self.write({'error': "Module is used by {0}. If you need this "
+                                 "module, you might force unlock it by issuing "
+                                 "DELETE request first.".format(used_by)})
             return
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
         global ws
         # Send update to all clients via WS
-        ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
+        ws.update_lock(hwconf.modules.index(self.module),
+                       getattr(self.module, 'used_by', None))
         self.write("OK")
 
     def delete(self):
@@ -230,7 +231,8 @@ class SelectModuleHandler(ModuleHandler):
         setattr(self.module, 'used_by', None)
         # Send update to all clients via WS
         global ws
-        ws.update_lock(hwconf.modules.index(self.module), getattr(self.module, 'used_by', None))
+        ws.update_lock(hwconf.modules.index(self.module),
+                       getattr(self.module, 'used_by', None))
         self.write("OK")
 
     def get(self):
@@ -387,13 +389,54 @@ class IndexPageHandler(BaseWebHandler):
 
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
+    """ Admin console - system setting configuration """
+
+    @auth.http_basic(auth.admin_auth)
+    def get(self):
+        self.render("admin_home.html")
+
+    post = delete = put = get
+
+
+class SystemUpgradeHandler(tornado.web.RequestHandler):
     """Placeholder for Admin Console web-page"""
 
     @auth.http_basic(auth.admin_auth)
     def get(self):
-        self.write("Coming soon..")
+        self.render("admin_system_upgrade.html",
+                    current_version=__version__,
+                    available_version=utils.get_latest_pypi_version(),
+                    error=None
+                    )
 
-    post = delete = put = get
+    @auth.http_basic(auth.admin_auth)
+    def post(self):
+        # This method requires certain privileges to install software
+        error = None
+        status = -1
+        try:
+            status = pip.main(['install', '-U', __project__])
+        except OSError:
+            error = "Insufficient permissions to run upgrade. Check system " \
+                    "documentation, section System Upgrade "
+
+        if status != 0:
+            error = "Failed to upgrade package {package}, exit status " \
+                    "{status}. Consult system documentation, section System " \
+                    "Upgrade for troubleshooting." \
+                    "".format(status=status, package=__project__)
+
+        if error:
+            self.render("admin_system_upgrade.html",
+                        current_version=__version__,
+                        available_version=utils.get_latest_pypi_version(),
+                        error=error
+                        )
+            return
+
+        # TODO: restart app (after daemonization implemented)
+
+        self.redirect(application.reverse_url('upgrade'))
 
 
 class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
@@ -412,7 +455,7 @@ class PageNotFoundHandler(tornado.web.RequestHandler):
     def get(self):
         self.set_status(404)
         # TODO: add nice template with clear message
-        self.write("Page not found")
+        self.render("404.html")
 
     post = put = delete = get
 
@@ -451,7 +494,7 @@ settings = {
 
 # URL schemas to RequestHandler classes mapping
 application = tornado.web.Application([
-    (r"/", IndexPageHandler,),
+    (r"/", IndexPageHandler, None, 'home'),
     (r"/api/v1/info", PlatformInfoHandler, None, 'api_platform_info'),
     (r"/api/v1/module", ModuleInfoHandler, None, 'api_module_info'),
     (r"/api/v1/modules_list", ModulesListHandler, None, 'api_module_list'),
@@ -461,6 +504,7 @@ application = tornado.web.Application([
     (r"/api/v1/send_scpi", SCPICommandHandler, None, 'api_send_scpi'),
     (r"/api/v1/module_ui_controls", ModuleUIHandler, None, 'api_widgets'),
     (r"/admin", AdminConsoleHandler, None, 'admin'),
+    (r"/admin/upgrade", SystemUpgradeHandler, None, 'upgrade'),
     (r"/logout", auth.LogoutHandler, None, 'logout'),
     (r"/login", auth.LoginHandler, None, 'login'),
     (r"/websocket", WebSocketHandler)

@@ -1,32 +1,6 @@
-{% extends "base.html" %}
-{% block title %}Administration console{% end %}
-{% block css %}
-    <link rel="stylesheet" href="../static/css/style.css" type="text/css">
-    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.min.css"
-          type="text/css" media="screen, projection">
-{% end %}
+{% extends "admin_base.html" %}
 
-{% block header %}
-    <div id="toolbar">
-        <ul id="toolbox">
-            <li><a href="/">Home</a></li>
-            <li><a href="" id="platform_info_toggler">Platform info</a></li>
-            <li><a href="/admin">Admin console</a></li>
-            <li><a href="/logout">Logout</a></li>
-        </ul>
-    </div>
+{% block admin_main %}
+Welcome to admin console. Soon we'll have configuration pages here..
 {% end %}
-
-{% block main %}
-{% end %}
-
-{% block footer %}
-{% end %}
-
-{% block js %}
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-<script src="/static/js/admin.js"></script>
-{% end %}
-
 
