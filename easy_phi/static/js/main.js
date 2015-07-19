@@ -21,21 +21,7 @@ var ep = window['ep'] || {
 
     init: function(base_url) {
         // TODO: set global ajax error handler
-        if (base_url == null) {
-            base_url = window.location.protocol + "//" +window.location.host;
-        }
-
-        ep.base_url = base_url;
-
-        setInterval(function(){
-            // -1 is for broadcast module
-            $("#platform_info_modules").text($("header.active").length-1);
-        }, 1000);
-
-        setInterval(function(){
-            $("#platform_info_modules_in_use").text(
-                $(".module_lock:not(:empty)").length);
-        }, 1000);
+        ep.base_url = base_url || '';
 
         var get_cookie = function(key) {
             // slow and dirty, but we need it only couple times
@@ -53,24 +39,25 @@ var ep = window['ep'] || {
             $("#platform_info_sw_version").text(platform_info['sw_version']);
             $("#platform_info_hw_version").text(platform_info['hw_version']);
             $("#platform_info_slots").text(platform_info['slots']);
-            ep.updateModuleList(); // manually update list of modules
-
-            //Init WebSocket session
-            ep._ws = new WebSocket("ws://" + window.location.host + "/websocket");
-            ep._ws.onmessage = function (event) {
-                //Handle a message from WebSocket
-                ep._parseWSMessage(event.data);
-            }
-
-            ep._username = get_cookie('username');
-            ep._api_token = get_cookie('api_token');
-            $('#username').text(ep._username);
-            $('#api_token').text(ep.api_token);
 
             $('#platform_info_toggler').click(function(){
                 $("#platform_info_container").dialog()
             }).toggle(true);
         });
+
+        ep.updateModuleList(); // manually update list of modules
+
+        //Init WebSocket session
+        ep._ws = new WebSocket("ws://" + window.location.host + "/websocket");
+        ep._ws.onmessage = function (event) {
+            //Handle a message from WebSocket
+            ep._parseWSMessage(event.data);
+        }
+
+        ep._username = get_cookie('username');
+        ep._api_token = get_cookie('api_token');
+        $('#username').text(ep._username);
+        $('#api_token').text(ep.api_token);
     },
 
     scpi: function(slot_id, scpi_command, callback) {
@@ -165,6 +152,7 @@ var ep = window['ep'] || {
 
         // get list of modules and update created containers
         $.get(ep.base_url+"/api/v1/modules_list?format=json", function(modules){
+
             modules.forEach(function(module_name, slot_id) {
                 if (slot_id > ep.slots) {
                     /* module plugged through standalone adapter or platform
@@ -174,6 +162,10 @@ var ep = window['ep'] || {
 
                 ep._updateModuleUI(slot_id, module_name);
             });
+
+            $("#platform_info_modules").text($("header.active").length-1);
+            $("#platform_info_modules_in_use").text(
+                $(".module_lock:not(:empty)").length);
         });
     },
 
@@ -241,11 +233,14 @@ var ep = window['ep'] || {
             case 'MODULE_UPDATE':
                 //Request to update Module info has been received
                 ep._updateModuleUI(json.slot, json.module_name);
+                $("#platform_info_modules").text($("header.active").length-1);
                 break;
 
             case 'LOCK_UPDATE':
                 //Update lock status of the module
                 ep._updateModuleLockStatus(json.slot, json.used_by);
+                $("#platform_info_modules_in_use").text(
+                    $(".module_lock:not(:empty)").length);
                 break;
 
             case 'DATA_UPDATE':

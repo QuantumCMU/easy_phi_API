@@ -6,7 +6,7 @@ from setuptools import setup
 # options reference: https://docs.python.org/2/distutils/
 setup(
     name="easy_phi",
-    packages=["easy_phi", 'static', 'templates', 'scripts'],
+    packages=['easy_phi', 'scripts'],
     version="0.2.6",
     license="GPL v3.0",
     description='Easy Phi project web application',
@@ -35,9 +35,7 @@ setup(
                            'scripts/widgets.conf']),
     ],
     package_data={
-        'static': ['*.html', 'css/*', 'js/*'],
         'scripts': ['*'],
-        'templates': ['*.html'],
     },
     install_requires=['tornado', 'pyudev', 'pyserial', 'dicttoxml'],
     # TODO: add unit tests
