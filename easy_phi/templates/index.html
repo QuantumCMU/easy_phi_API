@@ -18,7 +18,7 @@
 {% end %}
 
 {% block main %}
-    <div id="toolbar">
+    <div id="toolbar" class="ui-helper-clearfix">
         Welcome, <span id="username">%username%</span>.
         <span id="api_token"></span>
         <ul id="toolbox">
@@ -34,7 +34,7 @@
     <div id="console_container">
         <label for="console_log">System log:</label>
         <div id="console_log"></div>
-        <button id="console_clear_btn">Clear</button>
+        <button id="console_clear_btn" class="ui-widget ui-state-default ui-corner-all">Clear</button>
     </div>
 {% end %}
 

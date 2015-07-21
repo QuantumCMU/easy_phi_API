@@ -79,7 +79,8 @@ var ep = window['ep'] || {
         in platform info slots.
         In future, we might consider switching to a normal template engine like
         Mustache */
-        container.append("<header id='module_header_"+slot_id+"'>"+slot_id+".&nbsp;" +
+        container.append("<header id='module_header_"+slot_id+"' "+
+            "class='ui-widget-header ui-state-disabled'>"+slot_id+".&nbsp;" +
             // module name
             "<span class='module_name' id='module_name_"+slot_id+"'>"+
             (module_name||ep._empty_slot_str)+"</span>" +
@@ -89,7 +90,7 @@ var ep = window['ep'] || {
             "</header>" +
             // control panel
             "<section class='control_panel' id='module_control_panel_"+slot_id+
-            "'></section>");
+            "' class='ui-widget-content'></section>");
         $("#module_header_"+slot_id).click(function() {
             if (!$(this).hasClass("active")) return;
             // if module is being opened, check if is used by somebody
@@ -193,6 +194,7 @@ var ep = window['ep'] || {
         $.getScript(widgets_script_url).done(function(){
             // mark module active
             header.addClass("active");
+            header.removeClass("ui-state-disabled");
         });
     },
 
