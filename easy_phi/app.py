@@ -11,19 +11,23 @@ import tornado.ioloop
 import tornado.httpserver
 import tornado.web
 import tornado.websocket
+import tornado.gen
+
 from tornado.options import options, define
 from tornado.options import parse_config_file, parse_command_line
 
-import hwconf
-import auth
-import utils
-import scpi2widgets
+from easy_phi import hwconf
+from easy_phi import auth
+from easy_phi import utils
+from easy_phi import scpi2widgets
 
 # whenever you change version, please update setup.py as well
-VERSION = "0.2.6"
+from easy_phi import __version__ as VERSION
 
 # configuration defaults
 define("conf_path", default="/etc/easy_phi.conf")
+define("template_path",
+       default=os.path.join(os.path.dirname(__file__), 'templates'))
 define("static_path",
        default=os.path.join(os.path.dirname(__file__), '..', 'static'))
 define("server_port", default=8000)
@@ -42,6 +46,38 @@ ws = None
 
 class APIHandler(tornado.web.RequestHandler):
     """ Tornado handlers subclass to format response to xml/json/plain """
+
+    # default value of api_token is empty string
+    # this is done to make it optional with dummy auth backend
+    api_token = None
+
+    def prepare(self):
+        """ Look for API token in request
+        API token is looked in following order:
+            - session cookie (to support access from web interface)
+            - HTTP Basic auth password, if username is api_token
+            - GET request variable api_token
+        """
+        api_token = self.get_cookie(options.session_cookie_name)
+
+        if api_token is None:
+            user, pwd = auth.parse_http_basic_auth(self.request)
+            if user == 'api_token':
+                api_token = pwd
+
+        if api_token is None:
+            api_token = self.get_argument('api_token', '')
+
+        if not auth.validate_api_token(api_token):
+            self.set_status(401)
+            self.finish({"error": "api_token is missing or invalid. You can "
+                                  "pass api token in request GET parameters, "
+                                  "cookie or HTTP. To get api token please "
+                                  "login and check api token in your profile"
+                         })
+            return
+
+        self.api_token = api_token
 
     def data_received(self, chunk):
         # to get rid of annoying pylint message about not implemented
@@ -89,11 +125,10 @@ class ModuleHandler(APIHandler):
     allow_broadcast = False
     slot = None
     module = None  # updated by self.prepare() if slot number is correct
-    # api_token = None  # updated by decorator @api_auth
-    # TODO Delete this
-    api_token = 'temporary_token'
 
     def prepare(self):
+        super(ModuleHandler, self).prepare()
+
         err = ''
         slot = self.get_argument('slot', '')
         if slot == '':
@@ -215,7 +250,8 @@ class SCPICommandHandler(ModuleHandler):
         # Check user lock status
         used_by = getattr(self.module, 'used_by', None)
         # auth.user_by_token(None) returns None, in case selection isn't used
-        if used_by and used_by != auth.user_by_token(self.api_token):
+        # This check is not applicable to broadcast module (slot 0)
+        if self.slot and used_by != auth.user_by_token(self.api_token):
             self.set_status(409)  # Conflict
             self.finish({
                 'error': "Module is used by {0}. If you need this module, you "
@@ -282,7 +318,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     allow_broadcast = False
 
     def update_module(self, added, slot):
-        """Send update to clients indicating that module has been added/removed"""
+        """Send update to clients indicating that module has been added or
+        removed
+        """
         message = {
             'msg_type': 'MODULE_UPDATE',
             'slot': slot,
@@ -292,7 +330,9 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         self.write_message(message)
 
     def update_lock(self, slot, used_by):
-        """Send update to clients indicating that module has been locked/unlocked"""
+        """Send update to clients indicating that module has been locked or
+        unlocked
+        """
         message = {
             'msg_type': 'LOCK_UPDATE',
             'slot': slot,
@@ -322,8 +362,28 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         hwconf.callbacks.remove(self.update_module)
 
     def on_message(self, message):
-        """This method is for testing purposes and simply echoes received messages"""
+        """This method is for testing purposes and simply echoes received
+        messages
+        """
         self.write_message('Echo:' + message)
+
+
+class BaseWebHandler(tornado.web.RequestHandler):
+    def get_current_user(self):
+        return auth.user_by_token(
+            self.get_cookie(options.session_cookie_name))
+
+
+class IndexPageHandler(BaseWebHandler):
+    @tornado.web.authenticated
+    @tornado.gen.coroutine
+    def get(self):
+        # Web interface (except admin console is built to support static
+        # templates, so it does not use any template variables. All information
+        # in web UI is rendered by means of REST API
+        # The only reason to have separate handler instead of redirect to static
+        # file is to wrap .get() method in authenticated decorator
+        self.render("index.html")
 
 
 class AdminConsoleHandler(tornado.web.RequestHandler):
@@ -368,6 +428,13 @@ else:
     except IOError:  # configuration file doesn't exist, use defaults
         pass
 
+if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
+    # even if default security backend is dummy, user still has to visit auth
+    # page before api requests will be accepted. Here is a workaround for that
+    # This is only to enable api calls with dummy backend without opening web
+    # interface, index page will perform authorization
+    auth.register_token(options.security_dummy_username, '')
+
 # it should start after options already parsed, as hwconf depends on certain
 # options like ports configurations, timeouts etc
 hwconf.start()
@@ -378,21 +445,24 @@ settings = {
     'static_url_prefix': '/static/',
     'static_handler_class': ContorlledCacheStaticFilesHandler,
     'static_path': options.static_path,
-    'login_url': '/login/',
+    'template_path': options.template_path,
+    'login_url': '/login',
 }
 
 # URL schemas to RequestHandler classes mapping
 application = tornado.web.Application([
-    (r"/", tornado.web.RedirectHandler,
-        {"url": '/static/index.html'}),
-    (r"/api/v1/info", PlatformInfoHandler),
-    (r"/api/v1/module", ModuleInfoHandler),
-    (r"/api/v1/modules_list", ModulesListHandler),
-    (r"/api/v1/module_scpi_list", ListSCPICommandsHandler),
-    (r"/api/v1/lock_module", SelectModuleHandler),
-    (r"/api/v1/send_scpi", SCPICommandHandler),
-    (r"/api/v1/module_ui_controls", ModuleUIHandler),
-    (r"/admin", AdminConsoleHandler),
+    (r"/", IndexPageHandler,),
+    (r"/api/v1/info", PlatformInfoHandler, None, 'api_platform_info'),
+    (r"/api/v1/module", ModuleInfoHandler, None, 'api_module_info'),
+    (r"/api/v1/modules_list", ModulesListHandler, None, 'api_module_list'),
+    (r"/api/v1/module_scpi_list", ListSCPICommandsHandler, None,
+        'api_list_commands'),
+    (r"/api/v1/lock_module", SelectModuleHandler, None, 'api_select_module'),
+    (r"/api/v1/send_scpi", SCPICommandHandler, None, 'api_send_scpi'),
+    (r"/api/v1/module_ui_controls", ModuleUIHandler, None, 'api_widgets'),
+    (r"/admin", AdminConsoleHandler, None, 'admin'),
+    (r"/logout", auth.LogoutHandler, None, 'logout'),
+    (r"/login", auth.LoginHandler, None, 'login'),
     (r"/websocket", WebSocketHandler)
 ], **settings)
 
