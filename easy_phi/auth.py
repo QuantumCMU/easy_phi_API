@@ -321,7 +321,7 @@ class PasswordAuthAPIHandler(tornado.web.RequestHandler):
             user = self.get_argument('user')
             if user not in users:
                 self.set_status(404)
-                self.finish('User not found')
+                self.finish('User {user} not found'.format(user=user))
                 return
             self.user = user
 
