@@ -510,6 +510,10 @@ application = tornado.web.Application([
     (r"/websocket", WebSocketHandler)
 ], **settings)
 
+if 'easy_phi.auth.PasswordAuthLoginHandler' in options.security_backends:
+    application.add_handlers(".*$", [
+        (r"/admin/passwords", auth.PasswordAuthAPIHandler, None, 'passwords'),
+    ])
 
 def main(application=application):
     # start hw configuration monitoring. It requires configuration of hw ports

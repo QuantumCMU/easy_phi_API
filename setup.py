@@ -48,7 +48,8 @@ setup(
         'pyserial',
         'dicttoxml',
         'pkgtools',
-        'pip'
+        'pip',
+        'keyring'
     ],
     # TODO: add unit tests
 )
