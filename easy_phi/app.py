@@ -406,7 +406,13 @@ class AdminConsoleHandler(tornado.web.RequestHandler):
 
 
 class SystemUpgradeHandler(tornado.web.RequestHandler):
-    """Placeholder for Admin Console web-page"""
+    """System upgrade page for admin page
+    This handler allows to see version available on Pypi and perform update if
+    it is not the latest one (actually, just run command
+    `pip install --upgrade easy_phi` )
+    This handler requires package to be installed into user-writable directory,
+    e.g. virtualenv
+    """
 
     @auth.http_basic(auth.admin_auth)
     def get(self):
