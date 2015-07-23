@@ -288,7 +288,6 @@ class PasswordAuthLoginHandler(LoginHandler):
 class GoogleLoginHandler(LoginHandler, tornado.auth.GoogleOAuth2Mixin):
     """ Google security backend - require Google login with configured domain"""
 
-
     @tornado.gen.coroutine
     def get(self):
         """

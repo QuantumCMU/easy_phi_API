@@ -63,6 +63,23 @@ class AdminConsoleAccessTest(tornado.testing.AsyncHTTPTestCase):
         self.failIf(response.error)
 
 
+class SystemUpgradeAccessTest(tornado.testing.AsyncHTTPTestCase):
+
+    url = None
+
+    def setUp(self):
+        super(SystemUpgradeAccessTest, self).setUp()
+        self.url = self._app.reverse_url('upgrade')
+
+    def get_app(self):
+        return app.application
+
+    def test_password_required(self):
+        response = self.fetch(self.url)
+
+        self.assertEqual(response.code, 401,
+                         "System Upgrade accessible without password")
+
 class AuthUtilsTest(unittest.TestCase):
 
     def test_generate_token(self):

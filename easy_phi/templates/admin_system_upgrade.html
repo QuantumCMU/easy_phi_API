@@ -1,0 +1,19 @@
+{% extends "admin_base.html" %}
+
+{% block admin_main %}
+    <ul>
+        {% if error %}
+            <li><strong>Upgrade failed: {{ error }}</strong></li>
+        {% else %}
+            <li>Current version: {{ current_version }}</li>
+            <li>Available version: {{ available_version }}</li>
+            {% if current_version >= available_version %}
+                <li><strong>No upgrade available</strong></li>
+            {% else %}
+                <li><form method="post"><input type="submit" value="Upgrade" /></form></li>
+            {% end %}
+        {% end %}
+    </ul>
+
+{% end %}
+
