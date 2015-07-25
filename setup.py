@@ -12,7 +12,7 @@ long_description = "Software for test measurement equipment platform."
 setup(
     name="easy_phi",
     packages=['easy_phi', 'scripts'],
-    version="0.2.6",
+    version="0.2.7",
     license="GPL v3.0",
     description='Easy Phi project web application',
     long_description=long_description,
@@ -39,7 +39,6 @@ setup(
         ('/etc/easy_phi', ['scripts/modules_conf_patches.conf',
                            'scripts/widgets.conf']),
     ],
-    include_package_data = True,
     package_data={
         'scripts': ['*'],
         'easy_phi': ['templates/*.html',

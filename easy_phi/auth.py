@@ -35,8 +35,7 @@ define('session_cookie_name', 'api_token')
 define('session_cookie_ttl', 30)
 define('session_cookie_length', 16)
 
-# define('security_backend', default='easy_phi.auth.DummyLoginHandler')
-define('security_backend', default='easy_phi.auth.GoogleLoginHandler')
+define('security_backend', default='easy_phi.auth.DummyLoginHandler')
 define('security_backends', default=[
     'easy_phi.auth.DummyLoginHandler',
     'easy_phi.auth.PasswordAuthLoginHandler',
