@@ -12,7 +12,9 @@ credentials, so we need an abstraction layer, implemented in this file.
 import base64
 import functools
 import hashlib
+import json
 import re
+import urllib
 import uuid
 import subprocess
 import keyring
@@ -33,7 +35,8 @@ define('session_cookie_name', 'api_token')
 define('session_cookie_ttl', 30)
 define('session_cookie_length', 16)
 
-define('security_backend', default='easy_phi.auth.DummyLoginHandler')
+# define('security_backend', default='easy_phi.auth.DummyLoginHandler')
+define('security_backend', default='easy_phi.auth.GoogleLoginHandler')
 define('security_backends', default=[
     'easy_phi.auth.DummyLoginHandler',
     'easy_phi.auth.PasswordAuthLoginHandler',
@@ -48,7 +51,8 @@ define('security_password_auth_user_list_path',
        '/etc/easy_phi/passwords_auth_users')
 
 # GoogleLoginHandler settings
-define('security_google_login_domain', 'google.com')
+define('security_google_oauth_client_id', '')
+define('security_google_oauth_secret', '')
 
 # map of api_tokens to authenticated users
 # i.e. active_tokens[hash_value] = username
@@ -249,7 +253,7 @@ class LoginHandler(tornado.web.RequestHandler, tornado.util.Configurable):
         self.set_cookie('username', username,
                         expires_days=options.session_cookie_ttl)
 
-        next_url = self.get_argument('next') or \
+        next_url = self.get_argument('next', '') or \
             self.request.headers.get('Referer') or \
             '/'
         self.redirect(next_url)
@@ -331,7 +335,7 @@ class PasswordAuthAPIHandler(tornado.web.RequestHandler):
             if not 5 < len(password) < 31 or not re.search("\d", password) \
                     or not re.search("[a-zA-Z]", password):
                 self.set_status(400)
-                self.finish('Password is mission or does not mathch safety '
+                self.finish('Password is missing or does not match safety '
                             'criteria. Password should be 6 to 30 characters '
                             'long, contain at least one digit and at least one '
                             'letter.')
@@ -355,7 +359,8 @@ class PasswordAuthAPIHandler(tornado.web.RequestHandler):
         Please note that password itself will be ignored, it is to get length
         only and used either to generate stars in password field and testing
         """
-        self.write(keyring.get_password(service, self.user))
+        self.set_header("Content-Length",
+                        len(keyring.get_password(service, self.user)))
 
     def put(self):
         """Create new user """
@@ -411,22 +416,53 @@ class PasswordAuthLoginHandler(LoginHandler):
 
 class GoogleLoginHandler(LoginHandler, tornado.auth.GoogleOAuth2Mixin):
     """ Google security backend - require Google login with configured domain"""
+    _OAUTH_USERINFO_URL = "https://www.googleapis.com/oauth2/v1/userinfo"
+
+    def get_user_info(self, access_token):
+        query = urllib.urlencode({
+            'alt': 'json',
+            'access_token': access_token
+        })
+        response = urllib.urlopen(self._OAUTH_USERINFO_URL + '?' + query)
+        return json.loads(response.read())
+
+    def prepare(self):
+        super(GoogleLoginHandler, self).prepare()
+        self.settings['google_oauth'] = {
+            'key': options.security_google_oauth_client_id,
+            'secret': options.security_google_oauth_secret
+        }
 
     @tornado.gen.coroutine
     def get(self):
         """
+        1. User gets to this handler, 'code' is not provided
+        2. handler redirects user to OAuth handler by calling authorize_redirect
+        3. OAuth provider authenticates user and creates temprorary token, then
+            redirects user to provided redirect_uri with token in 'code'
+        4. User gets to this handler having 'code'.
+        5. tornado.auth.GoogleOAuth2Mixin checks token
+        6
         For more details check
             http://tornado.readthedocs.org/en/latest/auth.html
         """
+        redirect_uri = "{proto}://{host}{uri}".format(
+            proto=self.request.protocol,
+            host=self.request.host or 'localhost',
+            uri=self.request.path)
         if self.get_argument('code', False):
-            user = yield self.get_authenticated_user(
-                redirect_uri='http://your.site.com/auth/google',
+            auth_info = yield self.get_authenticated_user(
+                redirect_uri=redirect_uri + '',
                 code=self.get_argument('code'))
-            # Save the user with e.g. set_secure_cookie
+
+            userinfo = self.get_user_info(auth_info['access_token'])
+            self.authenticate(userinfo['email'])
         else:
             yield self.authorize_redirect(
-                redirect_uri='http://your.site.com/auth/google',
-                client_id=self.settings['google_oauth']['key'],
-                scope=['profile', 'email'],
+                redirect_uri=redirect_uri,
+                client_id=self.settings[self._OAUTH_SETTINGS_KEY]['key'],
+                # see https://developers.google.com/+/web/api/rest/oauth
+                # for other profiles. Usually ['profile', 'email'] is enough
+                scope=['email'],
                 response_type='code',
                 extra_params={'approval_prompt': 'auto'})

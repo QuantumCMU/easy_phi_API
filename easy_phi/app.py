@@ -467,7 +467,6 @@ class PageNotFoundHandler(tornado.web.RequestHandler):
 
     def get(self):
         self.set_status(404)
-        # TODO: add nice template with clear message
         self.render("404.html")
 
     post = put = delete = get

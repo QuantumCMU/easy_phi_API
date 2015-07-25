@@ -27,7 +27,7 @@ var ep = window['ep'] || {
             // slow and dirty, but we need it only couple times
             var result;
             return (result = new RegExp(
-                    '(?:^|; )'+encodeURIComponent(key)+'=([^;]*)').exec(
+                    '(?:^|; )'+encodeURIComponent(key)+'="?([^;"]*)').exec(
                         document.cookie)
                 ) ? (result[1]) : null;
         };
