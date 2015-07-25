@@ -39,8 +39,19 @@ setup(
         ('/etc/easy_phi', ['scripts/modules_conf_patches.conf',
                            'scripts/widgets.conf']),
     ],
+    include_package_data = True,
     package_data={
         'scripts': ['*'],
+        'easy_phi': ['templates/*.html',
+                     'static/js/*.js',
+                     'static/css/*.css',
+                     'static/css/themes/redmond/*.css',
+                     'static/css/themes/redmond/images/*.png',
+                     'static/css/themes/smoothness/*.css',
+                     'static/css/themes/smoothness/images/*.png',
+                     'static/favicon.ico'
+                     'static/robots.txt'
+                     ],
     },
     install_requires=[
         'tornado',
