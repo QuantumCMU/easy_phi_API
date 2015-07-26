@@ -4,7 +4,8 @@
 import json
 import dicttoxml
 from xml.dom.minidom import parseString
-import uuid
+
+import pkgtools.pypi
 
 
 def format_conversion(chunk, fmt, debug=False):
@@ -50,6 +51,7 @@ def scpi_equivalent(command, canonical):
 
     return False
 
+
 def parse_scpi_command(raw_str):
     # TODO: add docstring, documentation, unittest
     chunks = raw_str.split(" ", 2)
@@ -58,5 +60,13 @@ def parse_scpi_command(raw_str):
     remainder = "" or len(chunks) > 2 and chunks
     return cmd, arg, remainder
 
-def get_MAC_address():
-    return uuid.getnode()
+
+def get_latest_pypi_version():
+    """Get version of latest release available on PyPi
+    This function is used by system upgrade function
+    """
+    from easy_phi import __project__ as proj
+    p = pkgtools.pypi.PyPIXmlRpc()
+    releases = p.package_releases(proj)
+    if releases and len(releases)>0:
+        return releases[0]

@@ -6,8 +6,8 @@ import threading
 
 from tornado.options import options, define
 
-import mod_conf_patch
-import utils
+from easy_phi import mod_conf_patch
+from easy_phi import utils
 
 define("serial_port_timeout", default=2)
 define("serial_port_baudrate", default=3000000)

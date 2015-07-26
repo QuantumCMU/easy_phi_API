@@ -9,13 +9,13 @@ import pyudev
 
 from tornado.options import define, options
 
-import hwal
+from easy_phi import hwal
 
-define('ports', type=list, default=[])
+define('ports', default=[])
 
 callbacks = [
-    # hardware configuration change listener will call these methods
-    # it is necessary to send updates to websockets
+    # hardware configuration change listener will call these methods.
+    # It is necessary to send updates to websockets
 ]
 
 modules = [None]
@@ -96,15 +96,16 @@ def hwconf_listener(action, device):
 # for asynchronous hw configuration monitoring reference see
 # https://pyudev.readthedocs.org/en/latest/guide.html#asynchronous-monitoring
 monitor = pyudev.Monitor.from_netlink(_context)
+# observer is a subclass of threading.Thread
 observer = pyudev.MonitorObserver(monitor, hwconf_listener)
 
 
 def start():
     """ update hardware configuration on start and install udev listener """
     global modules
-    for port in options.ports:
-        modules += [None]
-    observer.start()
+    modules += [None] * len(options.ports)
+    if not observer.is_alive():  # start() called twice before stop()
+        observer.start()
     hwconf_update()
 
 

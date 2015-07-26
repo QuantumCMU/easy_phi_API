@@ -1,6 +1,19 @@
-/* TODO: copy reset here */
+/*=========================================
+*    YUI RESET
+*    http://yui.yahooapis.com/3.18.1/build/cssreset/cssreset-min.css
+YUI 3.18.1 (build f7e7bcb)
+Copyright 2014 Yahoo! Inc. All rights reserved.
+Licensed under the BSD License.
+http://yuilibrary.com/license/
+*=========================================*/
+
+html{color:#000;background:#FFF}body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre,code,form,fieldset,legend,input,textarea,p,blockquote,th,td{margin:0;padding:0}table{border-collapse:collapse;border-spacing:0}fieldset,img{border:0}address,caption,cite,code,dfn,em,strong,th,var{font-style:normal;font-weight:normal}ol,ul{list-style:none}caption,th{text-align:left}h1,h2,h3,h4,h5,h6{font-size:100%;font-weight:normal}q:before,q:after{content:''}abbr,acronym{border:0;font-variant:normal}sup{vertical-align:text-top}sub{vertical-align:text-bottom}input,textarea,select{font-family:inherit;font-size:inherit;font-weight:inherit;*font-size:100%}legend{color:#000}#yui3-css-stamp.cssreset{display:none}
+
+/*=========================================
+*        SIDE CONTENT CONTAINER
+*=========================================*/
 #platform_info_container {
-    position:absolute;
+    display:none;
     top:0;left:0;
     width:180px;
     margin: 5px;
@@ -16,15 +29,11 @@
 }
 #console_container {
     /* keep rest up to date with module container */
-    margin:auto;
-    width:80%;
-    min-width:500px;
-    max-width:800px;
     padding: 5px;
     text-align: left;
 }
 #console_clear_btn {
-    float:right;
+    margin: 0.3em 0;
 }
 #console_log {
     font-family:"Courier New", courier, monospace;
@@ -37,23 +46,53 @@
     overflow: auto;
     border: 1px solid black;
     resize:none;
+    padding: 5px;
 }
+
+/*=========================================
+*        HEADER
+*=========================================*/
+#toolbar {
+    padding:1em 0;
+    text-align:left;
+    font-size:small;
+}
+#toolbar:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+#api_token {
+    font-weight:bold;
+}
+#api_token:not(:empty):before {
+    content: "Your api token is ";
+    font-weight:normal;
+}
+#toolbox {
+    float:right;
+}
+#toolbox li {
+    display:inline;
+}
+
 /*=========================================
 *        MAIN CONTENT CONTAINER
 *=========================================*/
 main {
     text-align: center;
-}
-/*=========================================
-*        MODULE LIST CONTAINER
-*=========================================*/
-#modules_list {
     margin:auto;
     width:80%;
     min-width:500px;
     max-width:800px;
     height: 100%;
     padding: 5px;
+}
+
+/*=========================================
+*        MODULE LIST CONTAINER
+*=========================================*/
+#modules_list {
     text-align: left;
 }
 /*-------------------------------------------
@@ -84,9 +123,7 @@ main {
     right:1em;
     padding-right:50px; /*lock image is 40px wide*/
     font-size:smaller;
-    background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAYAAAD/Rn+7AAABnUlEQVRIx9XWsUocURiG4WcHwjYihl1BLGzSJUWYcrqxChYDSTG5AO8g0weEgKXeQS4gU2RhC0nlFIEthzR221iIYAQRm0FYUujGMDFmzZ6Afu2Bl5f/cP7zddyWyio28Qov8NT/y1d8wUepo/Zh5xa5LbxHlPUy+XIuWUysddfAYXNodD5SnpSGp8OQohN8kNr6s2DlM17HC7GdZzvSpfROYnVWKcaF+qIOKTqQevO7YOUT8qyXKZ+XulF3JlozaeQHeehpllJvbwQr77ATL8RG8WhmuV8lkzoJPclCarej8gRH6O+/3P/rtd513evf1kMKfsdqdP1a+1kv+2c5SJdSWS8LKdjHZoQNyJfzuYkhGK1sRIghWUzmpoVgtBJHWMHPPTdPQjBaWYk88EQ4nv4Q8yYEo5XjCDWMzkdz00IwWqkj7EF5Us6//gMwWtl7BIs6dYltKMaFZtLcm9RMGsW4CD29banLq1ec2kVZX9Tyg/xektOyEPgfLq+d3KyZq/YwGJ4OJXWiOqtmutakTkI3mcG0yTzCwvoAK/8P/EangJw1pNkAAAAASUVORK5CYII=);
-    background-repeat: no-repeat;
-    background-position: right center;
+    background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAYAAAD/Rn+7AAABnUlEQVRIx9XWsUocURiG4WcHwjYihl1BLGzSJUWYcrqxChYDSTG5AO8g0weEgKXeQS4gU2RhC0nlFIEthzR221iIYAQRm0FYUujGMDFmzZ6Afu2Bl5f/cP7zddyWyio28Qov8NT/y1d8wUepo/Zh5xa5LbxHlPUy+XIuWUysddfAYXNodD5SnpSGp8OQohN8kNr6s2DlM17HC7GdZzvSpfROYnVWKcaF+qIOKTqQevO7YOUT8qyXKZ+XulF3JlozaeQHeehpllJvbwQr77ATL8RG8WhmuV8lkzoJPclCarej8gRH6O+/3P/rtd513evf1kMKfsdqdP1a+1kv+2c5SJdSWS8LKdjHZoQNyJfzuYkhGK1sRIghWUzmpoVgtBJHWMHPPTdPQjBaWYk88EQ4nv4Q8yYEo5XjCDWMzkdz00IwWqkj7EF5Us6//gMwWtl7BIs6dYltKMaFZtLcm9RMGsW4CD29banLq1ec2kVZX9Tyg/xektOyEPgfLq+d3KyZq/YwGJ4OJXWiOqtmutakTkI3mcG0yTzCwvoAK/8P/EangJw1pNkAAAAASUVORK5CYII=) no-repeat right center;
 }
 .module_lock:not(:empty) { /* i.e. locked by somebody */
     background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAUCAYAAAD/Rn+7AAABn0lEQVRIx9WWMU/CQBiGn15FiBiGpmtXEgdjDIuhCwMOuhgmYkd3f4KTs1P/AFMNI4sOdGCpcTVMGhi0a5EEjIJSzkEcTNSIPRN8k5su99xzd8l3n8YXiSAD7ANlYBNY429yAJyaMPpsUvtETAeOgUNgNenu+sYGacdhqVRCz+fRcjnkYEB8c8Ok1WLsecRXVw+ACxyZEPPNrZUiuI5AJh09w5BPtZr8SZ5qNdkzDDnbu/SV3J4KsQhkv1CQk05HzpNJpyP7hcI7Y+/DE0ewDlwCK0mfVFgWuSBAt6y518ZhyMC2mYbhI7BlQlvM5k5UyAFkXfdXcgC6ZZF1XWYuJwBaBDvAmQq5VLlMrtlMzBlsb/Pi+wC7AqiqqhfLjqOaUxVAUZVgyrZVc4pa9FYg0yrAxmiElk6OkuMx95kMwFiw4BHAnSrY9PZWNedOABeqBF+CQDXnQgB1VYLPnqeaUxcmnANNJSf3fZ4bjWRyjcZ7DWyacP4/vjoT2oCSKjsNQ4aVCnG3O59ct8uwUmEahgDOzGnx262Fb1i1RW/5XwGTZpxwVZcsfQAAAABJRU5ErkJggg==);
@@ -122,13 +159,25 @@ main {
 }
 
 footer {
-    position: absolute;
+    position: fixed;
     text-align: right;
     bottom:0;
-    height: 5%;
+    height: 2em;
+    background-color:white;
     margin: 0 10px;
     border-top: 2px solid black;
     width:95%;
     padding: 0 10px;
     font-size: smaller;
+}
+
+/*=========================================
+*        admin stuffs
+*=========================================*/
+
+#admin_main {
+    text-align:left;
+    border: 1px solid black;
+    padding: 1em;
+    border-radius: 1em;
 }

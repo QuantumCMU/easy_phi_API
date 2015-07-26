@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Administration console{% end %}
+
+{% block header %}
+{% end %}
+
+{% block main %}
+    <div id="toolbar">
+        <a href="/">Home</a>
+        <ul id="toolbox">
+            <li><a href="/admin">Settings</a></li>
+            <li><a href="/admin/upgrade">System upgrade</a></li>
+        </ul>
+    </div>
+    <div id="admin_main">{% block admin_main %}{% end %}</div>
+{% end %}
+
+{% block footer %}
+{% end %}
+
+{% block js %}
+<script src="/static/js/admin.js"></script>
+{% end %}
+
+

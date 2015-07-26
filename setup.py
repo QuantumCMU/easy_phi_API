@@ -3,14 +3,19 @@
 
 from setuptools import setup
 
+# TODO: add meaningful long description
+# First, write it to Readme.md
+# then, copy it here and document in process to transfer all Readme updates
+long_description = "Software for test measurement equipment platform."
+
 # options reference: https://docs.python.org/2/distutils/
 setup(
     name="easy_phi",
-    packages=["easy_phi", 'static', 'scripts'],
-    version="0.2.6",
+    packages=['easy_phi', 'scripts'],
+    version="0.3",
     license="GPL v3.0",
     description='Easy Phi project web application',
-    long_description="Software for test measurement equipment platform.",
+    long_description=long_description,
     author='Team Quantum',
     author_email='shadeless@ya.ru',
     url='https://github.com/QuantumCMU/easy_phi_API',
@@ -35,9 +40,26 @@ setup(
                            'scripts/widgets.conf']),
     ],
     package_data={
-        'static': ['*.html', 'css/*', 'js/*'],
         'scripts': ['*'],
+        'easy_phi': ['templates/*.html',
+                     'static/js/*.js',
+                     'static/css/*.css',
+                     'static/css/themes/redmond/*.css',
+                     'static/css/themes/redmond/images/*.png',
+                     'static/css/themes/smoothness/*.css',
+                     'static/css/themes/smoothness/images/*.png',
+                     'static/favicon.ico'
+                     'static/robots.txt'
+                     ],
     },
-    install_requires=['tornado', 'pyudev', 'pyserial', 'dicttoxml'],
+    install_requires=[
+        'tornado',
+        'pyudev',
+        'pyserial',
+        'dicttoxml',
+        'pkgtools',
+        'pip',
+        'keyring'
+    ],
     # TODO: add unit tests
 )
