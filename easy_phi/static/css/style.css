@@ -55,14 +55,19 @@ html{color:#000;background:#FFF}body,div,dl,dt,dd,ul,ol,li,h1,h2,h3,h4,h5,h6,pre
 #toolbar {
     padding:1em 0;
     text-align:left;
+    font-size:small;
 }
 #toolbar:after {
   content: "";
   display: table;
   clear: both;
 }
+#api_token {
+    font-weight:bold;
+}
 #api_token:not(:empty):before {
     content: "Your api token is ";
+    font-weight:normal;
 }
 #toolbox {
     float:right;

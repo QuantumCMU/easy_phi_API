@@ -19,6 +19,26 @@ Security backend can be changed in system configuration file or admin console
 (web interface). In settings, it is configured as a path to Python class that 
 implements authorization, with reasonable defaults provided.
 
+Dummy backend
+------------
+This is not a real security backend - it is just a dummy that automatically
+accepts all users as logged in with default username (Anonymous)
+
+Password backend
+------------
+
+It is still not very secure, as passwords are transferred in plain text unless
+system employs SSL certificates and forces SSL communication
+
+###Configuration 
+
+###Troubleshooting
+
+Google/OpenID backend
+------------
+
+
+
 Admin authentication
 ===========
 

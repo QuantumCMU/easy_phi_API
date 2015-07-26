@@ -208,9 +208,12 @@ class SelectModuleHandler(ModuleHandler):
     def post(self):
         """ Set user lock on module to indicate it is used by someone """
         used_by = getattr(self.module, 'used_by', None)
+        if used_by == auth.user_by_token(self.api_token):
+            self.finish("OK")
+            return
         if used_by is not None:
             self.set_status(400)
-            self.write({'error': "Module is used by {0}. If you need this "
+            self.finish({'error': "Module is used by {0}. If you need this "
                                  "module, you might force unlock it by issuing "
                                  "DELETE request first.".format(used_by)})
             return
@@ -219,21 +222,21 @@ class SelectModuleHandler(ModuleHandler):
         # Send update to all clients via WS
         ws.update_lock(hwconf.modules.index(self.module),
                        getattr(self.module, 'used_by', None))
-        self.write("OK")
+        self.finish("OK")
 
     def delete(self):
         """ Force to remove any user lock from the module """
         used_by = getattr(self.module, 'used_by', None)
         if used_by is None:
             self.set_status(400)
-            self.write({'error': 'Module is not used by anyone at the moment'})
+            self.finish({'error': 'Module is not used by anyone at the moment'})
             return
         setattr(self.module, 'used_by', None)
         # Send update to all clients via WS
         global ws
         ws.update_lock(hwconf.modules.index(self.module),
                        getattr(self.module, 'used_by', None))
-        self.write("OK")
+        self.finish("OK")
 
     def get(self):
         """ Return user lock status of the module
@@ -375,9 +378,13 @@ class BaseWebHandler(tornado.web.RequestHandler):
         return auth.user_by_token(
             self.get_cookie(options.session_cookie_name))
 
+    @tornado.web.authenticated
+    def prepare(self):
+        super(BaseWebHandler, self).prepare()
+
 
 class IndexPageHandler(BaseWebHandler):
-    @tornado.web.authenticated
+
     @tornado.gen.coroutine
     def get(self):
         # Web interface (except admin console is built to support static
@@ -460,7 +467,6 @@ class PageNotFoundHandler(tornado.web.RequestHandler):
 
     def get(self):
         self.set_status(404)
-        # TODO: add nice template with clear message
         self.render("404.html")
 
     post = put = delete = get
@@ -516,6 +522,10 @@ application = tornado.web.Application([
     (r"/websocket", WebSocketHandler)
 ], **settings)
 
+if 'easy_phi.auth.PasswordAuthLoginHandler' in options.security_backends:
+    application.add_handlers(".*$", [
+        (r"/admin/passwords", auth.PasswordAuthAPIHandler, None, 'passwords'),
+    ])
 
 def main(application=application):
     # start hw configuration monitoring. It requires configuration of hw ports

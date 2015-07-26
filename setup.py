@@ -12,7 +12,7 @@ long_description = "Software for test measurement equipment platform."
 setup(
     name="easy_phi",
     packages=['easy_phi', 'scripts'],
-    version="0.2.6",
+    version="0.2.7",
     license="GPL v3.0",
     description='Easy Phi project web application',
     long_description=long_description,
@@ -41,6 +41,16 @@ setup(
     ],
     package_data={
         'scripts': ['*'],
+        'easy_phi': ['templates/*.html',
+                     'static/js/*.js',
+                     'static/css/*.css',
+                     'static/css/themes/redmond/*.css',
+                     'static/css/themes/redmond/images/*.png',
+                     'static/css/themes/smoothness/*.css',
+                     'static/css/themes/smoothness/images/*.png',
+                     'static/favicon.ico'
+                     'static/robots.txt'
+                     ],
     },
     install_requires=[
         'tornado',
@@ -48,7 +58,8 @@ setup(
         'pyserial',
         'dicttoxml',
         'pkgtools',
-        'pip'
+        'pip',
+        'keyring'
     ],
     # TODO: add unit tests
 )

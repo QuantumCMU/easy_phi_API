@@ -27,7 +27,7 @@ var ep = window['ep'] || {
             // slow and dirty, but we need it only couple times
             var result;
             return (result = new RegExp(
-                    '(?:^|; )'+encodeURIComponent(key)+'=([^;]*)').exec(
+                    '(?:^|; )'+encodeURIComponent(key)+'="?([^;"]*)').exec(
                         document.cookie)
                 ) ? (result[1]) : null;
         };
@@ -56,7 +56,7 @@ var ep = window['ep'] || {
         ep._username = get_cookie('username');
         ep._api_token = get_cookie('api_token');
         $('#username').text(ep._username);
-        $('#api_token').text(ep.api_token);
+        $('#api_token').text(ep._api_token);
     },
 
     scpi: function(slot_id, scpi_command, callback) {

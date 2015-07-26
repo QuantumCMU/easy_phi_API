@@ -5,7 +5,7 @@ Project website: http://easy-phi.ch
 """
 
 # if you update version here, please updte it in setup.py as well
-__version__ = "0.2.6"
+__version__ = "0.2.7"
 __license__ = "GPL v3.0"
 __project__ = "easy_phi"
 

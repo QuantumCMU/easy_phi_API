@@ -12,14 +12,20 @@ credentials, so we need an abstraction layer, implemented in this file.
 import base64
 import functools
 import hashlib
+import json
+import re
+import urllib
 import uuid
 import subprocess
+import keyring
 
 import tornado.web
 import tornado.util
 import tornado.auth
 import tornado.gen
 from tornado.options import options, define
+
+from easy_phi import __project__ as service
 
 define('admin_login', default='easy-phi')
 define('admin_password', default='easy-phi')
@@ -40,10 +46,12 @@ define('security_backends', default=[
 define('security_dummy_username', 'Anonymous')
 
 # PasswordAuthLoginHandler settings
-define('security_passwords_file_path', '/etc/easy_phi/passwords')
+define('security_password_auth_user_list_path',
+       '/etc/easy_phi/passwords_auth_users')
 
 # GoogleLoginHandler settings
-define('security_google_login_domain', 'google.com')
+define('security_google_oauth_client_id', '')
+define('security_google_oauth_secret', '')
 
 # map of api_tokens to authenticated users
 # i.e. active_tokens[hash_value] = username
@@ -244,7 +252,7 @@ class LoginHandler(tornado.web.RequestHandler, tornado.util.Configurable):
         self.set_cookie('username', username,
                         expires_days=options.session_cookie_ttl)
 
-        next_url = self.get_argument('next') or \
+        next_url = self.get_argument('next', '') or \
             self.request.headers.get('Referer') or \
             '/'
         self.redirect(next_url)
@@ -262,24 +270,144 @@ class DummyLoginHandler(LoginHandler):
 
     post = get
 
+_user_cache = None
 
-def _check_password_from_file(username, password):
-    """ Utility function for password security backend
-    Workflow:
-        get salt from file
-        calculate password hash using salt
-        compare
-    WARNING: for security reasons hashes in file should be different from tokens
-    """
-    # TODO: implement this method
-    return True
+
+class PasswordAuthAPIHandler(tornado.web.RequestHandler):
+    user = None
+    password = None
+
+    # this method is static to be used by check_passwords, which is in turn
+    # static to be used by PasswordAuthLoginHandler without class instantiation
+    @staticmethod
+    def get_users():
+        global _user_cache
+        if _user_cache is None:
+            try:
+                fh = open(options.security_password_auth_user_list_path, 'r')
+            except IOError:
+                return None
+            users = [line.split("#", 1)[0].strip() for line in fh]
+            _user_cache = sorted([user for user in users if user])
+        return _user_cache
+
+    @staticmethod
+    def set_users(users):
+        global _user_cache
+        try:
+            fh = open(options.security_password_auth_user_list_path, 'w')
+            fh.write("\n".join(sorted(users)))
+        except IOError:
+            return False
+        fh.close()
+        _user_cache = None
+        return True
+
+    @staticmethod
+    def check_password(username, password):
+        """ Check if user is registered user and password matches stored one """
+        users = PasswordAuthAPIHandler.get_users() or []
+        return username in users \
+            and password == keyring.get_password(service, username)
+
+    @http_basic(admin_auth)
+    def prepare(self):
+        self.set_header('Content-Type', 'text/plain')
+        users = PasswordAuthAPIHandler.get_users()
+        if users is None:
+            self.set_status(403)
+            self.finish('Password authorization is not configured properly. '
+                        'Please check system documentation.')
+            return
+
+        if self.request.method in ('POST', 'DELETE', 'HEAD'):
+            user = self.get_argument('user')
+            if user not in users:
+                self.set_status(404)
+                self.finish('User {user} not found'.format(user=user))
+                return
+            self.user = user
+
+        if self.request.method in ('POST', 'PUT'):
+            # "or ''" is to handle PUT/POST without body
+            password = self.request.body or ''
+            if not 5 < len(password) < 31 or not re.search("\d", password) \
+                    or not re.search("[a-zA-Z]", password):
+                self.set_status(400)
+                self.finish('Password is missing or does not match safety '
+                            'criteria. Password should be 6 to 30 characters '
+                            'long, contain at least one digit and at least one '
+                            'letter.')
+                return
+            self.password = password
+
+    def get(self):
+        """List users (ajax) or render passwords management page (otherwise)"""
+        users = PasswordAuthAPIHandler.get_users()
+        # Ajax
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # i.e. it is ajax request
+            self.finish("\n".join(users))
+            return
+        # Non- Ajax
+        self.clear()  # reset content-type
+        self.render('admin_manage_passwords.html', users=users)
+
+    def head(self):
+        """Return length of user password
+        Please note that password itself will be ignored, it is to get length
+        only and used either to generate stars in password field and testing
+        """
+        self.set_header("Content-Length",
+                        len(keyring.get_password(service, self.user)))
+
+    def put(self):
+        """Create new user """
+        user = self.get_argument('user', '')
+
+        if len(user) < 4 or not re.match("[a-zA-Z][\w_]{3,19}$", user):
+            self.set_status(400)
+            self.finish('Username is missing or invalid. User name should '
+                        'start with letter, and contain only alphanumeric '
+                        'characters, dashes or underscores, and be 4 to 20 '
+                        'characters long.')
+            return
+
+        if user in PasswordAuthAPIHandler.get_users():
+            self.set_status(400)
+            self.finish('User already exists')
+            return
+
+        users = PasswordAuthAPIHandler.get_users() + [user]
+        if not PasswordAuthAPIHandler.set_users(users):
+            self.set_status(403)
+            self.finish('Can not create user. Please consult system '
+                        'documentation, section Security - Password backend')
+            return
+        self.finish('User {user} successfully created'.format(user=user))
+
+    def delete(self):
+        """Delete user """
+        users = [user for user in PasswordAuthAPIHandler.get_users()
+                 if user != self.user]
+        if not PasswordAuthAPIHandler.set_users(users):
+            self.set_status(403)
+            self.finish('Can not delete user. Please consult system '
+                        'documentation, section Security - Password backend')
+            return
+        self.finish('User {user} successfully deleted.'.format(user=self.user))
+
+    def post(self):
+        """Change user passowrd """
+        keyring.set_password(service, self.user, self.password)
+        self.finish("User password changed successfully")
 
 
 class PasswordAuthLoginHandler(LoginHandler):
     """ HTTP Basic auth security backend - request username and password """
 
     @tornado.gen.coroutine
-    @http_basic(_check_password_from_file)
+    @http_basic(PasswordAuthAPIHandler.check_password)
     def get(self):
         user, pwd = parse_http_basic_auth(self.request)
         self.authenticate(user)
@@ -287,22 +415,53 @@ class PasswordAuthLoginHandler(LoginHandler):
 
 class GoogleLoginHandler(LoginHandler, tornado.auth.GoogleOAuth2Mixin):
     """ Google security backend - require Google login with configured domain"""
+    _OAUTH_USERINFO_URL = "https://www.googleapis.com/oauth2/v1/userinfo"
+
+    def get_user_info(self, access_token):
+        query = urllib.urlencode({
+            'alt': 'json',
+            'access_token': access_token
+        })
+        response = urllib.urlopen(self._OAUTH_USERINFO_URL + '?' + query)
+        return json.loads(response.read())
+
+    def prepare(self):
+        super(GoogleLoginHandler, self).prepare()
+        self.settings['google_oauth'] = {
+            'key': options.security_google_oauth_client_id,
+            'secret': options.security_google_oauth_secret
+        }
 
     @tornado.gen.coroutine
     def get(self):
         """
+        1. User gets to this handler, 'code' is not provided
+        2. handler redirects user to OAuth handler by calling authorize_redirect
+        3. OAuth provider authenticates user and creates temprorary token, then
+            redirects user to provided redirect_uri with token in 'code'
+        4. User gets to this handler having 'code'.
+        5. tornado.auth.GoogleOAuth2Mixin checks token
+        6
         For more details check
             http://tornado.readthedocs.org/en/latest/auth.html
         """
+        redirect_uri = "{proto}://{host}{uri}".format(
+            proto=self.request.protocol,
+            host=self.request.host or 'localhost',
+            uri=self.request.path)
         if self.get_argument('code', False):
-            user = yield self.get_authenticated_user(
-                redirect_uri='http://your.site.com/auth/google',
+            auth_info = yield self.get_authenticated_user(
+                redirect_uri=redirect_uri + '',
                 code=self.get_argument('code'))
-            # Save the user with e.g. set_secure_cookie
+
+            userinfo = self.get_user_info(auth_info['access_token'])
+            self.authenticate(userinfo['email'])
         else:
             yield self.authorize_redirect(
-                redirect_uri='http://your.site.com/auth/google',
-                client_id=self.settings['google_oauth']['key'],
-                scope=['profile', 'email'],
+                redirect_uri=redirect_uri,
+                client_id=self.settings[self._OAUTH_SETTINGS_KEY]['key'],
+                # see https://developers.google.com/+/web/api/rest/oauth
+                # for other profiles. Usually ['profile', 'email'] is enough
+                scope=['email'],
                 response_type='code',
                 extra_params={'approval_prompt': 'auto'})

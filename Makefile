@@ -2,6 +2,7 @@ clean:
 	find -type f -name *.pyc -delete
 	rm -rf dist
 	rm -rf build
+	rm -rf easy_phi.egg-info
 
 test:
 	python -m easy_phi.tests.run_tests
