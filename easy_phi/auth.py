@@ -252,6 +252,9 @@ class LoginHandler(tornado.web.RequestHandler, tornado.util.Configurable):
         self.set_cookie('username', username,
                         expires_days=options.session_cookie_ttl)
 
+        # if next is not in request and no default provided, Tornado's
+        # get_argument will raise 400: Bad argument. That is why there is
+        # empty string default in this line
         next_url = self.get_argument('next', '') or \
             self.request.headers.get('Referer') or \
             '/'

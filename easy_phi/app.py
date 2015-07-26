@@ -214,8 +214,8 @@ class SelectModuleHandler(ModuleHandler):
         if used_by is not None:
             self.set_status(400)
             self.finish({'error': "Module is used by {0}. If you need this "
-                                 "module, you might force unlock it by issuing "
-                                 "DELETE request first.".format(used_by)})
+                                  "module, you might force unlock it by issuing"
+                                  " DELETE request first.".format(used_by)})
             return
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
         global ws
@@ -250,6 +250,7 @@ class SCPICommandHandler(ModuleHandler):
     """API function to send SCPI command to module in the specified rack slot"""
     allow_broadcast = True
 
+    @tornado.gen.coroutine
     def post(self):
         """Transfer SCPI command to a module and return the response"""
         # Check user lock status
@@ -270,7 +271,7 @@ class SCPICommandHandler(ModuleHandler):
             self.finish({'error': 'SCPI command expected in POST body'})
             return
 
-        self.write(self.module.scpi(scpi_command))
+        self.finish(self.module.scpi(scpi_command))
 
 
 class ModuleUIHandler(ModuleHandler):
@@ -296,7 +297,12 @@ class ModuleUIHandler(ModuleHandler):
 
         self.set_header('Content-type', 'application/javascript')
 
-        temp_id = int(time.time()*1000)
+        temp_id = int(time.time()*100000)
+        # time.time() has precision of 1/100000 of a second. Yet it is not a
+        # real precision, here we only care to have different IDs
+        # having them separated by a millisecond sometimes is not enough, since
+        # in local network two requests can arrive in less than one millisecond
+        # if some day 1/100000 would not be sufficient, think of using UUIDs
         for widget in widgets:
             temp_id += 1
             self.write("""$("{container}").append("<section id='{temp_id}' """
@@ -374,6 +380,13 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
 
 class BaseWebHandler(tornado.web.RequestHandler):
+    """ Basic class for web handlers, implements auth requirement for all
+    handlers and uniform retrieval of auth info
+    """
+    def data_received(self, chunk):
+        """ This method is not supported in admin console """
+        pass
+
     def get_current_user(self):
         return auth.user_by_token(
             self.get_cookie(options.session_cookie_name))
@@ -385,7 +398,6 @@ class BaseWebHandler(tornado.web.RequestHandler):
 
 class IndexPageHandler(BaseWebHandler):
 
-    @tornado.gen.coroutine
     def get(self):
         # Web interface (except admin console is built to support static
         # templates, so it does not use any template variables. All information
@@ -398,14 +410,24 @@ class IndexPageHandler(BaseWebHandler):
 class AdminConsoleHandler(tornado.web.RequestHandler):
     """ Admin console - system setting configuration """
 
+    def data_received(self, chunk):
+        """ This method is not supported in admin console """
+        pass
+
     @auth.http_basic(auth.admin_auth)
+    def prepare(self):
+        """ Helper to require admin auth from all views
+        It does not implement any additional functionality
+        """
+        super(AdminConsoleHandler, self).prepare()
+
     def get(self):
         self.render("admin_home.html")
 
     post = delete = put = get
 
 
-class SystemUpgradeHandler(tornado.web.RequestHandler):
+class SystemUpgradeHandler(AdminConsoleHandler):
     """System upgrade page for admin page
     This handler allows to see version available on Pypi and perform update if
     it is not the latest one (actually, just run command
@@ -527,10 +549,8 @@ if 'easy_phi.auth.PasswordAuthLoginHandler' in options.security_backends:
         (r"/admin/passwords", auth.PasswordAuthAPIHandler, None, 'passwords'),
     ])
 
-def main(application=application):
-    # start hw configuration monitoring. It requires configuration of hw ports
-    # so it shall be done after parsing conf file
 
+def main(application=application):
     # we need HTTP server to serve SSL requests.
     ssl_ctx = None
     http_server = tornado.httpserver.HTTPServer(
