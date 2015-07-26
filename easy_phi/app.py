@@ -471,7 +471,7 @@ class SystemUpgradeHandler(AdminConsoleHandler):
 
         # TODO: restart app (after daemonization implemented)
 
-        self.redirect(application.reverse_url('upgrade'))
+        self.redirect(self.application.reverse_url('upgrade'))
 
 
 class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
@@ -493,64 +493,71 @@ class PageNotFoundHandler(tornado.web.RequestHandler):
 
     post = put = delete = get
 
-if __name__ == '__main__':
-    # parse command line twice to allow pass configuration file path
-    parse_command_line(final=False)
-    parse_config_file(options.conf_path, final=False)
-    # command-line args override conf file options
-    parse_command_line()
-else:
-    try:
-        parse_config_file(options.conf_path, final=False)
-    except IOError:  # configuration file doesn't exist, use defaults
-        pass
 
-if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
+def get_application():
+    settings = {
+        'debug': options.debug,
+        'default_handler_class': PageNotFoundHandler,
+        'static_url_prefix': '/static/',
+        'static_handler_class': ContorlledCacheStaticFilesHandler,
+        'static_path': options.static_path,
+        'template_path': options.template_path,
+        'login_url': '/login',
+    }
+
+    application = tornado.web.Application([
+        (r"/", IndexPageHandler, None, 'home'),
+        (r"/api/v1/info", PlatformInfoHandler, None, 'api_platform_info'),
+        (r"/api/v1/module", ModuleInfoHandler, None, 'api_module_info'),
+        (r"/api/v1/modules_list", ModulesListHandler, None, 'api_module_list'),
+        (r"/api/v1/module_scpi_list", ListSCPICommandsHandler, None,
+            'api_list_commands'),
+        (r"/api/v1/lock_module", SelectModuleHandler, None,
+            'api_select_module'),
+        (r"/api/v1/send_scpi", SCPICommandHandler, None, 'api_send_scpi'),
+        (r"/api/v1/module_ui_controls", ModuleUIHandler, None, 'api_widgets'),
+        (r"/admin", AdminConsoleHandler, None, 'admin'),
+        (r"/admin/upgrade", SystemUpgradeHandler, None, 'upgrade'),
+        (r"/logout", auth.LogoutHandler, None, 'logout'),
+        (r"/login", auth.LoginHandler, None, 'login'),
+        (r"/websocket", WebSocketHandler)
+    ], **settings)
+
+    if 'easy_phi.auth.PasswordAuthLoginHandler' in options.security_backends:
+        application.add_handlers(".*$", [
+            (r"/admin/passwords", auth.PasswordAuthAPIHandler, None,
+                'passwords'),
+        ])
+
+    return application
+
+
+def main():
+    if __name__ == '__main__':
+        # parse command line twice to allow pass configuration file path
+        parse_command_line(final=False)
+        parse_config_file(options.conf_path, final=False)
+        # command-line args override conf file options
+        parse_command_line()
+    else:
+        try:
+            parse_config_file(options.conf_path, final=False)
+        except IOError:  # configuration file doesn't exist, use defaults
+            pass
+
+    application = get_application()
+
     # even if default security backend is dummy, user still has to visit auth
     # page before api requests will be accepted. Here is a workaround for that
     # This is only to enable api calls with dummy backend without opening web
     # interface, index page will perform authorization
-    auth.register_token(options.security_dummy_username, '')
+    if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
+        auth.register_token(options.security_dummy_username, '')
 
-# it should start after options already parsed, as hwconf depends on certain
-# options like ports configurations, timeouts etc
-hwconf.start()
+    # it should start after options already parsed, as hwconf depends on certain
+    # options like ports configurations, timeouts etc
+    hwconf.start()
 
-settings = {
-    'debug': options.debug,
-    'default_handler_class': PageNotFoundHandler,
-    'static_url_prefix': '/static/',
-    'static_handler_class': ContorlledCacheStaticFilesHandler,
-    'static_path': options.static_path,
-    'template_path': options.template_path,
-    'login_url': '/login',
-}
-
-# URL schemas to RequestHandler classes mapping
-application = tornado.web.Application([
-    (r"/", IndexPageHandler, None, 'home'),
-    (r"/api/v1/info", PlatformInfoHandler, None, 'api_platform_info'),
-    (r"/api/v1/module", ModuleInfoHandler, None, 'api_module_info'),
-    (r"/api/v1/modules_list", ModulesListHandler, None, 'api_module_list'),
-    (r"/api/v1/module_scpi_list", ListSCPICommandsHandler, None,
-        'api_list_commands'),
-    (r"/api/v1/lock_module", SelectModuleHandler, None, 'api_select_module'),
-    (r"/api/v1/send_scpi", SCPICommandHandler, None, 'api_send_scpi'),
-    (r"/api/v1/module_ui_controls", ModuleUIHandler, None, 'api_widgets'),
-    (r"/admin", AdminConsoleHandler, None, 'admin'),
-    (r"/admin/upgrade", SystemUpgradeHandler, None, 'upgrade'),
-    (r"/logout", auth.LogoutHandler, None, 'logout'),
-    (r"/login", auth.LoginHandler, None, 'login'),
-    (r"/websocket", WebSocketHandler)
-], **settings)
-
-if 'easy_phi.auth.PasswordAuthLoginHandler' in options.security_backends:
-    application.add_handlers(".*$", [
-        (r"/admin/passwords", auth.PasswordAuthAPIHandler, None, 'passwords'),
-    ])
-
-
-def main(application=application):
     # we need HTTP server to serve SSL requests.
     ssl_ctx = None
     http_server = tornado.httpserver.HTTPServer(
@@ -561,4 +568,4 @@ def main(application=application):
     # TODO: add TCP socket handler to listen for HiSlip requests from VISA
 
 if __name__ == '__main__':
-    main(application)
+    main()

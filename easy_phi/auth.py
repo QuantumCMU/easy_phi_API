@@ -47,7 +47,7 @@ define('security_dummy_username', 'Anonymous')
 
 # PasswordAuthLoginHandler settings
 define('security_password_auth_user_list_path',
-       '/etc/easy_phi/passwords_auth_users')
+       '/etc/easy_phi/passwords_auth_users.txt')
 
 # GoogleLoginHandler settings
 define('security_google_oauth_client_id', '')
