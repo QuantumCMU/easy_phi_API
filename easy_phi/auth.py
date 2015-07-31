@@ -101,7 +101,9 @@ def _token_generator():
                  (l.split("#", 1)[0].strip() for l in fstab.split('\n')))))
 
         try:
-            hostid = subprocess.check_output('hostid')
+            # subprocess.check_output() is not available prior to Python 2.7
+            hostid = subprocess.Popen(['hostid'],
+                                      stdout=subprocess.PIPE).communicate()[0]
         except OSError:
             # 4 chosen by a fair dice roll. Guaranteed to be random :)
             hostid = uuid.uuid1(clock_seq=4).hex
