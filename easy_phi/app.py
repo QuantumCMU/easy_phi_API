@@ -30,7 +30,9 @@ define("conf_path", default="/etc/easy_phi.conf")
 define("template_path",
        default=os.path.join(os.path.dirname(__file__), 'templates'))
 define("static_path", default=os.path.join(os.path.dirname(__file__), 'static'))
-define("server_port", default=8000)
+define("http_port", default=8000)
+define("hislip_port", default=4880)
+define("raw_socket_port", default=5025)
 define("sw_version", default=__version__)
 define("hw_version", default='N/A')
 define("vendor", type=str)
@@ -39,6 +41,12 @@ define("welcome_message", default="")
 define("debug", default=False)
 
 define("default_format", default='json')
+
+# SSL options
+define("ssl_port", default=4443)
+define("ssl", 'disable')
+define('ssl_certfile', '/etc/easy_phi/server.crt')
+define('ssl_keyfile', '/etc/easy_phi/server.key')
 
 # WebSocket object
 ws = None
@@ -484,14 +492,26 @@ class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
                 'Cache-control', 'no-cache, no-store, must-revalidate')
 
 
-class PageNotFoundHandler(tornado.web.RequestHandler):
+class PageNotFoundHandler(BaseWebHandler):
     """Custom 404 page"""
 
     def get(self):
         self.set_status(404)
         self.render("404.html")
 
-    post = put = delete = get
+    post = put = delete = head = get
+
+
+class ForceHTTPSHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        url = 'https://' + self.request.host.split(":", 1)[0]
+        if options.ssl_port != 443:
+            url += ':' + str(options.ssl_port)
+        url += self.request.uri
+        self.redirect(url)
+
+    post = delete = put = head = get
 
 
 def get_application():
@@ -559,10 +579,19 @@ def main():
     hwconf.start()
 
     # we need HTTP server to serve SSL requests.
-    ssl_ctx = None
-    http_server = tornado.httpserver.HTTPServer(
-        application, ssl_options=ssl_ctx)
-    http_server.listen(options.server_port)
+    if options.ssl == 'enabled' or options.ssl == 'force':
+        application.listen(options.ssl_port, ssl_options={
+            'certfile': options.ssl_certfile,
+            'keyfile': options.ssl_keyfile,
+        })
+
+    if options.ssl == 'force':
+        tornado.web.Application([
+            (r'/.*', ForceHTTPSHandler)
+        ]).listen(options.http_port)
+    else:
+        application.listen(options.http_port)
+
     tornado.ioloop.IOLoop.current().start()
 
     # TODO: add TCP socket handler to listen for HiSlip requests from VISA

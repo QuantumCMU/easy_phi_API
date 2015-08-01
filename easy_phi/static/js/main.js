@@ -32,7 +32,9 @@ var ep = window['ep'] || {
                 ) ? (result[1]) : null;
         };
 
-        ep._ws = new WebSocket("ws://" + window.location.host + "/websocket");
+        ep._ws = new WebSocket(
+                (location.protocol == "https:" ? "wss://" : "ws://") +
+                window.location.host + "/websocket");
 
         //get Platform info
         $.get(ep.base_url + "/api/v1/info?format=json", function(platform_info){

@@ -1,4 +1,44 @@
 
+SSL support
+=====
+
+Generate self-signed certificate
+------
+
+If you run system inside local network (very likely) and don't have fully 
+qualified domain name (likely), you will need to create self-signed certificate
+in order to use SSL encription.
+
+    # Linux command prompt, openssl required
+    # you can install openssl by running:
+    # sudo apt-get install openssl
+    # generate server private key
+    # you will be asked passphrase. type something, we'll remove it later
+    openssl genrsa -des3 -out server.key 1024
+    # remove passphrase
+    openssl rsa -in server.key -out server.key
+    # create sign request
+    # you will be asked a few questions
+    openssl req -new -key server.key -out server.csr
+    # sign certificate
+    openssl x509 -req -days 1024 -in server.csr -signkey server.key -out server.crt
+    
+That's it, you have a self-signed certificate. You will need files
+ `server.crt` and `server.key`.     
+
+Install certificates
+--------
+
+In configuration file:
+
+1. upload certificate files to system (e.g. server.crt and server.key)
+2. set up ssl_certfile and ssl_keyfile in configuration
+    (e.g. ssl_certfile=/etc/easy_phi/server.crt and 
+    ssl_keyfile=/etc/easy_phi/server.key)
+3. enable ssl (ssl=enable or ssl=force)
+4. restart app
+
+
 Configurable security backends
 =======================
 
@@ -69,3 +109,4 @@ There are three possible places where API handlers will look for api token.
     method. Yet all three methods do not protect against eavesdropping, this 
     one is especially insecure because GET parameters often logged by routers
     and proxies, so it can be accessed by a wider range of people.
+
