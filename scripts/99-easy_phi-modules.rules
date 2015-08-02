@@ -2,6 +2,6 @@
 ACTION=="remove", GOTO="easy_phi_modules_end"
 
 SUBSYSTEM=="tty", KERNEL=="ttyUSB[0-9]*|ttyACM[0-9]*", GROUP="tty", MODE="0666", ENV{ID_MM_CANDIDATE}="0"
-
+KERNEL=="usbtmc/*|usbtmc[0-9]*", GROUP="usbtmc", MODE="0666"
 
 LABEL="easy_phi_modules_end"

@@ -30,7 +30,9 @@ define("conf_path", default="/etc/easy_phi.conf")
 define("template_path",
        default=os.path.join(os.path.dirname(__file__), 'templates'))
 define("static_path", default=os.path.join(os.path.dirname(__file__), 'static'))
-define("server_port", default=8000)
+define("http_port", default=8000)
+define("hislip_port", default=4880)
+define("raw_socket_port", default=5025)
 define("sw_version", default=__version__)
 define("hw_version", default='N/A')
 define("vendor", type=str)
@@ -39,6 +41,12 @@ define("welcome_message", default="")
 define("debug", default=False)
 
 define("default_format", default='json')
+
+# SSL options
+define("ssl_port", default=4443)
+define("ssl", 'disable')
+define('ssl_certfile', '/etc/easy_phi/server.crt')
+define('ssl_keyfile', '/etc/easy_phi/server.key')
 
 # WebSocket object
 ws = None
@@ -214,8 +222,8 @@ class SelectModuleHandler(ModuleHandler):
         if used_by is not None:
             self.set_status(400)
             self.finish({'error': "Module is used by {0}. If you need this "
-                                 "module, you might force unlock it by issuing "
-                                 "DELETE request first.".format(used_by)})
+                                  "module, you might force unlock it by issuing"
+                                  " DELETE request first.".format(used_by)})
             return
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
         global ws
@@ -250,6 +258,7 @@ class SCPICommandHandler(ModuleHandler):
     """API function to send SCPI command to module in the specified rack slot"""
     allow_broadcast = True
 
+    @tornado.gen.coroutine
     def post(self):
         """Transfer SCPI command to a module and return the response"""
         # Check user lock status
@@ -270,7 +279,7 @@ class SCPICommandHandler(ModuleHandler):
             self.finish({'error': 'SCPI command expected in POST body'})
             return
 
-        self.write(self.module.scpi(scpi_command))
+        self.finish(self.module.scpi(scpi_command))
 
 
 class ModuleUIHandler(ModuleHandler):
@@ -296,7 +305,12 @@ class ModuleUIHandler(ModuleHandler):
 
         self.set_header('Content-type', 'application/javascript')
 
-        temp_id = int(time.time()*1000)
+        temp_id = int(time.time()*100000)
+        # time.time() has precision of 1/100000 of a second. Yet it is not a
+        # real precision, here we only care to have different IDs
+        # having them separated by a millisecond sometimes is not enough, since
+        # in local network two requests can arrive in less than one millisecond
+        # if some day 1/100000 would not be sufficient, think of using UUIDs
         for widget in widgets:
             temp_id += 1
             self.write("""$("{container}").append("<section id='{temp_id}' """
@@ -374,6 +388,13 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
 
 class BaseWebHandler(tornado.web.RequestHandler):
+    """ Basic class for web handlers, implements auth requirement for all
+    handlers and uniform retrieval of auth info
+    """
+    def data_received(self, chunk):
+        """ This method is not supported in admin console """
+        pass
+
     def get_current_user(self):
         return auth.user_by_token(
             self.get_cookie(options.session_cookie_name))
@@ -385,7 +406,6 @@ class BaseWebHandler(tornado.web.RequestHandler):
 
 class IndexPageHandler(BaseWebHandler):
 
-    @tornado.gen.coroutine
     def get(self):
         # Web interface (except admin console is built to support static
         # templates, so it does not use any template variables. All information
@@ -398,14 +418,24 @@ class IndexPageHandler(BaseWebHandler):
 class AdminConsoleHandler(tornado.web.RequestHandler):
     """ Admin console - system setting configuration """
 
+    def data_received(self, chunk):
+        """ This method is not supported in admin console """
+        pass
+
     @auth.http_basic(auth.admin_auth)
+    def prepare(self):
+        """ Helper to require admin auth from all views
+        It does not implement any additional functionality
+        """
+        super(AdminConsoleHandler, self).prepare()
+
     def get(self):
         self.render("admin_home.html")
 
     post = delete = put = get
 
 
-class SystemUpgradeHandler(tornado.web.RequestHandler):
+class SystemUpgradeHandler(AdminConsoleHandler):
     """System upgrade page for admin page
     This handler allows to see version available on Pypi and perform update if
     it is not the latest one (actually, just run command
@@ -449,7 +479,7 @@ class SystemUpgradeHandler(tornado.web.RequestHandler):
 
         # TODO: restart app (after daemonization implemented)
 
-        self.redirect(application.reverse_url('upgrade'))
+        self.redirect(self.application.reverse_url('upgrade'))
 
 
 class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
@@ -462,83 +492,109 @@ class ContorlledCacheStaticFilesHandler(tornado.web.StaticFileHandler):
                 'Cache-control', 'no-cache, no-store, must-revalidate')
 
 
-class PageNotFoundHandler(tornado.web.RequestHandler):
+class PageNotFoundHandler(BaseWebHandler):
     """Custom 404 page"""
 
     def get(self):
         self.set_status(404)
         self.render("404.html")
 
-    post = put = delete = get
+    post = put = delete = head = get
 
-if __name__ == '__main__':
-    # parse command line twice to allow pass configuration file path
-    parse_command_line(final=False)
-    parse_config_file(options.conf_path, final=False)
-    # command-line args override conf file options
-    parse_command_line()
-else:
-    try:
+
+class ForceHTTPSHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        url = 'https://' + self.request.host.split(":", 1)[0]
+        if options.ssl_port != 443:
+            url += ':' + str(options.ssl_port)
+        url += self.request.uri
+        self.redirect(url)
+
+    post = delete = put = head = get
+
+
+def get_application():
+    settings = {
+        'debug': options.debug,
+        'default_handler_class': PageNotFoundHandler,
+        'static_url_prefix': '/static/',
+        'static_handler_class': ContorlledCacheStaticFilesHandler,
+        'static_path': options.static_path,
+        'template_path': options.template_path,
+        'login_url': '/login',
+    }
+
+    application = tornado.web.Application([
+        (r"/", IndexPageHandler, None, 'home'),
+        (r"/api/v1/info", PlatformInfoHandler, None, 'api_platform_info'),
+        (r"/api/v1/module", ModuleInfoHandler, None, 'api_module_info'),
+        (r"/api/v1/modules_list", ModulesListHandler, None, 'api_module_list'),
+        (r"/api/v1/module_scpi_list", ListSCPICommandsHandler, None,
+            'api_list_commands'),
+        (r"/api/v1/lock_module", SelectModuleHandler, None,
+            'api_select_module'),
+        (r"/api/v1/send_scpi", SCPICommandHandler, None, 'api_send_scpi'),
+        (r"/api/v1/module_ui_controls", ModuleUIHandler, None, 'api_widgets'),
+        (r"/admin", AdminConsoleHandler, None, 'admin'),
+        (r"/admin/upgrade", SystemUpgradeHandler, None, 'upgrade'),
+        (r"/logout", auth.LogoutHandler, None, 'logout'),
+        (r"/login", auth.LoginHandler, None, 'login'),
+        (r"/websocket", WebSocketHandler)
+    ], **settings)
+
+    if 'easy_phi.auth.PasswordAuthLoginHandler' in options.security_backends:
+        application.add_handlers(".*$", [
+            (r"/admin/passwords", auth.PasswordAuthAPIHandler, None,
+                'passwords'),
+        ])
+
+    return application
+
+
+def main():
+    if __name__ == '__main__':
+        # parse command line twice to allow pass configuration file path
+        parse_command_line(final=False)
         parse_config_file(options.conf_path, final=False)
-    except IOError:  # configuration file doesn't exist, use defaults
-        pass
+        # command-line args override conf file options
+        parse_command_line()
+    else:
+        try:
+            parse_config_file(options.conf_path, final=False)
+        except IOError:  # configuration file doesn't exist, use defaults
+            pass
 
-if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
+    application = get_application()
+
     # even if default security backend is dummy, user still has to visit auth
     # page before api requests will be accepted. Here is a workaround for that
     # This is only to enable api calls with dummy backend without opening web
     # interface, index page will perform authorization
-    auth.register_token(options.security_dummy_username, '')
+    if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
+        auth.register_token(options.security_dummy_username, '')
 
-# it should start after options already parsed, as hwconf depends on certain
-# options like ports configurations, timeouts etc
-hwconf.start()
-
-settings = {
-    'debug': options.debug,
-    'default_handler_class': PageNotFoundHandler,
-    'static_url_prefix': '/static/',
-    'static_handler_class': ContorlledCacheStaticFilesHandler,
-    'static_path': options.static_path,
-    'template_path': options.template_path,
-    'login_url': '/login',
-}
-
-# URL schemas to RequestHandler classes mapping
-application = tornado.web.Application([
-    (r"/", IndexPageHandler, None, 'home'),
-    (r"/api/v1/info", PlatformInfoHandler, None, 'api_platform_info'),
-    (r"/api/v1/module", ModuleInfoHandler, None, 'api_module_info'),
-    (r"/api/v1/modules_list", ModulesListHandler, None, 'api_module_list'),
-    (r"/api/v1/module_scpi_list", ListSCPICommandsHandler, None,
-        'api_list_commands'),
-    (r"/api/v1/lock_module", SelectModuleHandler, None, 'api_select_module'),
-    (r"/api/v1/send_scpi", SCPICommandHandler, None, 'api_send_scpi'),
-    (r"/api/v1/module_ui_controls", ModuleUIHandler, None, 'api_widgets'),
-    (r"/admin", AdminConsoleHandler, None, 'admin'),
-    (r"/admin/upgrade", SystemUpgradeHandler, None, 'upgrade'),
-    (r"/logout", auth.LogoutHandler, None, 'logout'),
-    (r"/login", auth.LoginHandler, None, 'login'),
-    (r"/websocket", WebSocketHandler)
-], **settings)
-
-if 'easy_phi.auth.PasswordAuthLoginHandler' in options.security_backends:
-    application.add_handlers(".*$", [
-        (r"/admin/passwords", auth.PasswordAuthAPIHandler, None, 'passwords'),
-    ])
-
-def main(application=application):
-    # start hw configuration monitoring. It requires configuration of hw ports
-    # so it shall be done after parsing conf file
+    # it should start after options already parsed, as hwconf depends on certain
+    # options like ports configurations, timeouts etc
+    hwconf.start()
 
     # we need HTTP server to serve SSL requests.
-    ssl_ctx = None
-    http_server = tornado.httpserver.HTTPServer(
-        application, ssl_options=ssl_ctx)
-    http_server.listen(options.server_port)
+    if options.ssl == 'enabled' or options.ssl == 'force':
+        application.listen(options.ssl_port, ssl_options={
+            'certfile': options.ssl_certfile,
+            'keyfile': options.ssl_keyfile,
+        })
+
+    if options.ssl == 'force':
+        tornado.web.Application([
+            (r'/.*', ForceHTTPSHandler)
+        ]).listen(options.http_port)
+    else:
+        application.listen(options.http_port)
+
     tornado.ioloop.IOLoop.current().start()
 
     # TODO: add TCP socket handler to listen for HiSlip requests from VISA
 
 if __name__ == '__main__':
-    main(application)
+    main()

@@ -20,7 +20,7 @@ class BaseTestCase(tornado.testing.AsyncHTTPTestCase):
         # just and example how to set cookie:
         # self.headers = {"Cookie": '='.join((options.session_cookie_name,
         #                                    api_token))}
-        return app.application
+        return app.get_application()
 
 
 class PlatformInfoTest(BaseTestCase):
@@ -212,10 +212,11 @@ class SCPICommandTest(BaseTestCase):
                 response = self.fetch(
                     self.url+'&slot={0}'.format(slot+1),
                     method='POST', body='*IDN?')
-                response_obj = json.loads(response)
+                response_obj = json.loads(response.body)
                 self.assertIsInstance(
                     response_obj, basestring,
-                    "Module SCPI command expected to return string")
+                    "Module SCPI command expected to return string, received: "
+                    "{0}".format(response.body))
 
 
 class ModuleUIHandlerTest(BaseTestCase):
@@ -295,7 +296,7 @@ class WebSocketBaseTestCase(tornado.testing.AsyncHTTPTestCase):
 
 class WebSocketTest(WebSocketBaseTestCase):
     def get_app(self):
-        return app.application
+        return app.get_application()
 
     @tornado.testing.gen_test
     def test_websocket_gen(self):

@@ -47,7 +47,7 @@ define('security_dummy_username', 'Anonymous')
 
 # PasswordAuthLoginHandler settings
 define('security_password_auth_user_list_path',
-       '/etc/easy_phi/passwords_auth_users')
+       '/etc/easy_phi/passwords_auth_users.txt')
 
 # GoogleLoginHandler settings
 define('security_google_oauth_client_id', '')
@@ -101,7 +101,9 @@ def _token_generator():
                  (l.split("#", 1)[0].strip() for l in fstab.split('\n')))))
 
         try:
-            hostid = subprocess.check_output('hostid')
+            # subprocess.check_output() is not available prior to Python 2.7
+            hostid = subprocess.Popen(['hostid'],
+                                      stdout=subprocess.PIPE).communicate()[0]
         except OSError:
             # 4 chosen by a fair dice roll. Guaranteed to be random :)
             hostid = uuid.uuid1(clock_seq=4).hex
@@ -252,6 +254,9 @@ class LoginHandler(tornado.web.RequestHandler, tornado.util.Configurable):
         self.set_cookie('username', username,
                         expires_days=options.session_cookie_ttl)
 
+        # if next is not in request and no default provided, Tornado's
+        # get_argument will raise 400: Bad argument. That is why there is
+        # empty string default in this line
         next_url = self.get_argument('next', '') or \
             self.request.headers.get('Referer') or \
             '/'

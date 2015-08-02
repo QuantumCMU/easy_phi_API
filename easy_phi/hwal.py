@@ -189,12 +189,18 @@ class BroadcastModule(AbstractMeasurementModule):
         """
         for canonical, callback in self.platformwide_commands():
             if utils.scpi_equivalent(command, canonical):
+                # systemwide commands do not accept arguments
                 return callback()
 
         response = None
         for module in reversed(self.modules[1:]):
             if isinstance(module, AbstractMeasurementModule):
                 response = module.scpi(command)
+
+        if response is None:
+            # if at least one module present, it will be empty string even if
+            # no response was received.
+            return "**No modules connected"
 
         return response
 

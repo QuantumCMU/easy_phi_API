@@ -10,7 +10,7 @@ from easy_phi import app
 class PerformanceTest(tornado.testing.AsyncHTTPTestCase):
 
     def get_app(self):
-        return app.application
+        return app.get_application()
 
     def test_timing_send_scpi(self):
         # format=plain here is just to get rid of json parsing

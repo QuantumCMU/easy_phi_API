@@ -19,7 +19,7 @@ class AdminConsoleAccessTest(tornado.testing.AsyncHTTPTestCase):
         self.url = self._app.reverse_url('admin')
 
     def get_app(self):
-        return app.application
+        return app.get_application()
 
     def check_auth_headers(self, response):
         self.assertIn('WWW-Authenticate', response.headers,
@@ -73,7 +73,7 @@ class SystemUpgradeAccessTest(tornado.testing.AsyncHTTPTestCase):
         self.url = self._app.reverse_url('upgrade')
 
     def get_app(self):
-        return app.application
+        return app.get_application()
 
     def test_password_required(self):
         response = self.fetch(self.url)
@@ -98,7 +98,7 @@ class DummySecurityBackendTest(tornado.testing.AsyncHTTPTestCase):
         options.security_backend = 'easy_phi.auth.DummyLoginHandler'
 
     def get_app(self):
-        return app.application
+        return app.get_application()
 
     def test_no_passwd_required(self):
         response = self.fetch(self._app.reverse_url('login')+'?next=/')
@@ -148,7 +148,7 @@ class PasswordsAuthAPITest(tornado.testing.AsyncHTTPTestCase):
         self.url = self._app.reverse_url('passwords')
 
     def get_app(self):
-        return app.application
+        return app.get_application()
 
     def test_password_required(self):
         # not that auth header is not sent
