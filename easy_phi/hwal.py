@@ -2,51 +2,19 @@
 # -*- coding: utf-8 -*-
 
 import serial
-import threading
 import datetime
 
 from tornado.options import options, define
 import tornado.gen
 import tornado.concurrent
 import tornado.iostream
+import tornado.locks
 
 from easy_phi import mod_conf_patch
 from easy_phi import utils
 
 define("serial_port_timeout", default=2)
 define("serial_port_baudrate", default=9600)
-
-
-def lock(func):
-    """decorator to prevent concurrent execution of some function
-    This decorator should be used to wrap calls to devices to evade overlapping
-    commands from different requests
-    For SCPI supporting devices, same can be achieved by using  SCPI commands
-    *WAI, *OPC? or *STB?, but lock will result in lower latency
-    """
-    def wrapper(self, *args, **kwargs):
-        if not hasattr(self, 'lock'):
-            self._lock = threading.Lock()
-            self.is_locked = lambda x: x.lock.locked()
-        self._lock.acquire()
-        retval = func(self, *args, **kwargs)
-        self._lock.release()
-        return retval
-    return wrapper
-
-
-class AbsractModuleMetaclass(type):
-    def __new__(mcs, name, bases, dct):
-        mod_class = super(AbsractModuleMetaclass, mcs).__new__(
-            mcs, name, bases, dct)
-        if hasattr(mod_class, 'scpi') and mod_class.scpi == mcs.scpi:
-            setattr(mod_class, 'scpi', lock(mod_class.scpi))
-        return mod_class
-
-# will be applied to all classes in this module
-# it is not ok to do it in AbstractMeasurementModule because @lock
-# will be applied by all classes in inheritance chain
-__metaclass__ = AbsractModuleMetaclass
 
 
 class AbstractMeasurementModule(object):
@@ -56,6 +24,7 @@ class AbstractMeasurementModule(object):
     """
 
     name = "Abstract module"
+    lock = tornado.locks.Lock()
 
     def __init__(self, device, data_callback=None):
         """ Initialize module object with pyudev.Device object """
@@ -70,7 +39,10 @@ class AbstractMeasurementModule(object):
         return False
 
     def scpi(self, command):
-        """Send SCPI command to device"""
+        """Send SCPI command to device
+        Note that all subclusses are responsible of handling self.lock to
+        prevent concurrent operations
+        """
         raise NotImplementedError
 
     def get_configuration(self):
@@ -225,9 +197,9 @@ class CDCModule(AbstractMeasurementModule):
         """
         # First, acquire lock on the port. It is necessary to prevent concurrent
         # requests from the same user / api token
-
-        yield self.stream.write(command.strip() + "\n")
-        result = yield self.stream.readline()
+        with (yield self.lock.acquire()):
+            yield self.stream.write(command.strip() + "\n")
+            result = yield self.stream.readline()
         # At this point read future is resolved, due to timeout or end of
         # output, so it is safe to release lock
         raise tornado.gen.Return(result.strip())
