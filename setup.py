@@ -59,7 +59,8 @@ setup(
         'dicttoxml',
         'pkgtools',
         'pip',
-        'keyring'
+        'keyring',
+        'futures',  # Python 2 only
     ],
     # TODO: add unit tests
 )

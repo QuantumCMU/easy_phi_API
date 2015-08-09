@@ -17,10 +17,7 @@ import tornado.gen
 from tornado.options import options, define
 from tornado.options import parse_config_file, parse_command_line
 
-from easy_phi import hwconf
-from easy_phi import auth
-from easy_phi import utils
-from easy_phi import scpi2widgets
+from easy_phi import hwconf, auth, utils, scpi2widgets, hislip
 
 # whenever you change version, please update setup.py as well
 from easy_phi import __version__, __project__
@@ -31,15 +28,12 @@ define("template_path",
        default=os.path.join(os.path.dirname(__file__), 'templates'))
 define("static_path", default=os.path.join(os.path.dirname(__file__), 'static'))
 define("http_port", default=8000)
-define("hislip_port", default=4880)
-define("raw_socket_port", default=5025)
 define("sw_version", default=__version__)
 define("hw_version", default='N/A')
 define("vendor", type=str)
 define("welcome_message", default="")
 
 define("debug", default=False)
-
 define("default_format", default='json')
 
 # SSL options
@@ -47,6 +41,15 @@ define("ssl_port", default=4443)
 define("ssl", 'disable')
 define('ssl_certfile', '/etc/easy_phi/server.crt')
 define('ssl_keyfile', '/etc/easy_phi/server.key')
+
+# HiSLIP options
+define("hislip", 'disable')
+define("hislip_port", default=4880)
+
+# Raw sockets SCPI
+define("raw_socket", 'disable')
+define("raw_socket_port", default=5025)
+
 
 # WebSocket object
 ws = None
@@ -279,7 +282,9 @@ class SCPICommandHandler(ModuleHandler):
             self.finish({'error': 'SCPI command expected in POST body'})
             return
 
-        self.finish(self.module.scpi(scpi_command))
+        result = yield tornado.gen.maybe_future(self.module.scpi(scpi_command))
+
+        self.finish(result)
 
 
 class ModuleUIHandler(ModuleHandler):
@@ -373,12 +378,14 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         global ws
         ws = self
         # add update_module function as a callback to hwconf module
-        hwconf.callbacks.append(self.update_module)
+        hwconf.hwconf_change_callbacks.append(self.update_module)
+        hwconf.data_callbacks.append(self.send_data)
 
     def close(self, **kwargs):
         """Close WebSocket connection"""
         # remove update_module function as a callback to hwconf module
-        hwconf.callbacks.remove(self.update_module)
+        hwconf.hwconf_change_callbacks.remove(self.update_module)
+        hwconf.data_callbacks.remove(self.send_data)
 
     def on_message(self, message):
         """This method is for testing purposes and simply echoes received
@@ -444,7 +451,6 @@ class SystemUpgradeHandler(AdminConsoleHandler):
     e.g. virtualenv
     """
 
-    @auth.http_basic(auth.admin_auth)
     def get(self):
         self.render("admin_system_upgrade.html",
                     current_version=__version__,
@@ -452,7 +458,6 @@ class SystemUpgradeHandler(AdminConsoleHandler):
                     error=None
                     )
 
-    @auth.http_basic(auth.admin_auth)
     def post(self):
         # This method requires certain privileges to install software
         error = None
@@ -578,23 +583,27 @@ def main():
     # options like ports configurations, timeouts etc
     hwconf.start()
 
-    # we need HTTP server to serve SSL requests.
-    if options.ssl == 'enabled' or options.ssl == 'force':
+    # SSL stuffs
+    if options.ssl == 'enable' or options.ssl == 'force':
         application.listen(options.ssl_port, ssl_options={
             'certfile': options.ssl_certfile,
             'keyfile': options.ssl_keyfile,
         })
 
+    # TODO: write unit test
     if options.ssl == 'force':
         tornado.web.Application([
-            (r'/.*', ForceHTTPSHandler)
+            (r'.*', ForceHTTPSHandler)
         ]).listen(options.http_port)
     else:
         application.listen(options.http_port)
 
-    tornado.ioloop.IOLoop.current().start()
+    # HiSLIP support
+    if options.hislip == 'enable':
+        hislip_server = hislip.HiSLIPServer()
+        hislip_server.listen(options.hislip_port)
 
-    # TODO: add TCP socket handler to listen for HiSlip requests from VISA
+    tornado.ioloop.IOLoop.current().start()
 
 if __name__ == '__main__':
     main()
