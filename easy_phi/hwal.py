@@ -24,11 +24,12 @@ class AbstractMeasurementModule(object):
     """
 
     name = "Abstract module"
-    lock = tornado.locks.Lock()
+    lock = None
 
     def __init__(self, device, data_callback=None):
         """ Initialize module object with pyudev.Device object """
         self.device = device
+        self.lock = tornado.locks.Lock()
 
     @staticmethod
     def is_instance(device):
@@ -202,7 +203,7 @@ class CDCModule(AbstractMeasurementModule):
             result = yield self.stream.readline()
         # At this point read future is resolved, due to timeout or end of
         # output, so it is safe to release lock
-        raise tornado.gen.Return(result.strip())
+        raise tornado.gen.Return(result)
 
 
 class LegacyEasyPhiModule(CDCModule):
