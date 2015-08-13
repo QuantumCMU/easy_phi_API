@@ -97,13 +97,16 @@ class APIHandler(tornado.web.RequestHandler):
 
     def write(self, chunk):
         fmt = self.get_argument('format', options.default_format)
-        if fmt not in ('xml', 'json', 'plain'):
+        if fmt not in ('json', 'plain'):
             fmt = options.default_format
+
         chunk, ctype = utils.format_conversion(chunk, fmt, options.debug)
+
         if fmt == 'json':
             callback = self.get_argument('callback', '')
             if callback:  # JSONP support, for cross-domain static JS API
-                chunk = ''.join((callback, '(', chunk, ')'))
+                chunk = '{callback}({chunk});'.format(
+                    callback=callback, chunk=chunk)
         self.set_header('Content-Type', ctype)
 
         super(APIHandler, self).write(chunk)
@@ -170,11 +173,11 @@ class PlatformInfoHandler(APIHandler):
     """ Return basic info about the system """
     def get(self):
         self.write({
-            'sw_version': options.sw_version,
             'hw_version': options.hw_version,
-            'vendor': options.vendor,
             'slots': len(options.ports),
             'supported_api_versions': [1],
+            'sw_version': __version__,
+            'vendor': options.vendor,
             'welcome_message': options.welcome_message
         })
 

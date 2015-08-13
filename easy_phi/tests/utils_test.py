@@ -14,12 +14,6 @@ class FormatConversionsTest(unittest.TestCase):
         self.assertEqual(u'Hello world', response_text)
 
         response_text, ctype = \
-            utils.format_conversion("Hello world", 'xml')
-        self.assertEqual('<?xml version="1.0" encoding="UTF-8" ?><root>'
-                         '<item type="str">Hello world</item></root>',
-                         response_text)
-
-        response_text, ctype = \
             utils.format_conversion("Hello world", 'json')
         self.assertEqual('"Hello world"', response_text)
 
@@ -27,12 +21,6 @@ class FormatConversionsTest(unittest.TestCase):
         response_text, ctype = \
             utils.format_conversion(['one', 1, None], 'plain')
         self.assertMultiLineEqual(response_text, "one\n1\nNone")
-
-        response_text, ctype = \
-            utils.format_conversion(['one', 1, None], 'xml')
-        self.assertEqual('<?xml version="1.0" encoding="UTF-8" ?><root>'
-                         '<item type="str">one</item><item type="int">1</item>'
-                         '<item type="null"></item></root>', response_text)
 
         response_text, ctype = \
             utils.format_conversion(['one', 1, None], 'json')
@@ -45,16 +33,6 @@ class FormatConversionsTest(unittest.TestCase):
             utils.format_conversion({'one': 1, 2: None}, 'plain')
         self.assertEqual("2: None\none: 1", response_text)
 
-        # dicttoxml does not support integer indices
-        response_text, ctype = \
-            utils.format_conversion({'one': 1, '45': None}, 'xml')
-        self.assertTrue('<?xml version="1.0" encoding="UTF-8" ?><root>'
-                        '<n45 type="null"></n45><one type="int">1</one>'
-                        '</root>' == response_text or
-                        '<?xml version="1.0" encoding="UTF-8" ?><root>'
-                        '<one type="int">1</one><n45 type="null"></n45>'
-                        '</root>' == response_text)
-
         response_text, ctype = \
             utils.format_conversion({'one': 1, 2: None}, 'json')
         self.assertTrue('{"2": null, "one": 1}' == response_text or
@@ -65,10 +43,6 @@ class FormatConversionsTest(unittest.TestCase):
         response_text, ctype = \
             utils.format_conversion("Hello world", 'plain')
         self.assertEqual("text/plain", ctype)
-
-        response_text, ctype = \
-            utils.format_conversion("Hello world", 'xml')
-        self.assertEqual("application/xml", ctype)
 
         response_text, ctype = \
             utils.format_conversion("Hello world", 'json')

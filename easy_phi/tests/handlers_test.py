@@ -49,12 +49,6 @@ class PlatformInfoTest(BaseTestCase):
                 'application/json'),
             "Wrong response content type for 'format=json'")
 
-        response = self.fetch(self.url+'?format=xml', headers=self.headers)
-        self.assertTrue(
-            response.headers.get('Content-Type', '').startswith(
-                'application/xml'),
-            "Wrong response content type for 'format=xml'")
-
         response = self.fetch(self.url+'?format=plain', headers=self.headers)
         self.assertTrue(
             response.headers.get('Content-Type', '').startswith(
