@@ -161,7 +161,7 @@ class PasswordsAuthAPITest(tornado.testing.AsyncHTTPTestCase):
         # designed to return full page if it is not ajax request
         headers = self.headers.copy()
         if 'X-Requested-With' in headers:
-            del(headers['X-Requested-With'])
+            del headers['X-Requested-With']
 
         response = self.fetch(self.url, headers=headers)
         self.failIf(response.error, "Passwords management API Ajax GET error")
@@ -255,9 +255,9 @@ class PasswordsAuthAPITest(tornado.testing.AsyncHTTPTestCase):
                               method='HEAD', headers=self.headers)
         self.failIf(response.error, "Password length retrieve failed:\n" +
                     str(response))
-        l = int(response.headers['Content-Length'])
+        length = int(response.headers['Content-Length'])
 
-        self.assertEqual(l, len(password),
+        self.assertEqual(length, len(password),
                          "Password stored does not match password set:\n" +
                          "{0} characters vs {1} long")
 
@@ -272,13 +272,14 @@ class PasswordsAuthAPITest(tornado.testing.AsyncHTTPTestCase):
         response = self.fetch(self.url+'?user='+user,
                               method='HEAD', headers=self.headers)
         self.failIf(response.error, "Password length retrieve failed")
-        l = int(response.headers['Content-Length'])
+        length = int(response.headers['Content-Length'])
 
-        self.assertEqual(l, len(password),
+        self.assertEqual(length, len(password),
                          "Password stored does not match password set:\n" +
                          "{0} characters vs {1} long")
 
     def test_delete(self):
+        """ Test user deletion """
         # mock Ajax request
         response = self.fetch(self.url, headers=self.headers)
         self.failIf(response.error, "Passwords management API Ajax GET error")
@@ -305,6 +306,7 @@ class PasswordsAuthAPITest(tornado.testing.AsyncHTTPTestCase):
         self.assertNotIn(user, users)
 
     def test_403(self):
+        """ Test system access if user list is not configured """
         options.security_password_auth_user_list_path = '/'
 
         response = self.fetch(self.url, headers=self.headers)

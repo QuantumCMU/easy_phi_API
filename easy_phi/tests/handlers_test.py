@@ -14,6 +14,15 @@ class BaseTestCase(tornado.testing.AsyncHTTPTestCase):
     """ common setup procedure for all API calls, e.g. creating api token
     """
     headers = None
+    url = None
+    format = None
+    url_name = ''
+
+    def setUp(self):
+        super(BaseTestCase, self).setUp()
+        self.url = self._app.reverse_url(self.url_name)
+        if self.format is not None:
+            self.url += '?format=' + self.format
 
     def get_app(self):
         options.security_backend = 'easy_phi.auth.DummyLoginHandler'
@@ -25,11 +34,7 @@ class BaseTestCase(tornado.testing.AsyncHTTPTestCase):
 
 class PlatformInfoTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_platform_info')
+    url_name = 'api_platform_info'
 
     def test_response(self):
         response = self.fetch(self.url+'?format=json', headers=self.headers)
@@ -58,11 +63,8 @@ class PlatformInfoTest(BaseTestCase):
 
 class ModuleInfoTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_module_info') + '?format=json'
+    url_name = 'api_module_info'
+    format = 'json'
 
     def test_module_info(self):
         # testing on Broadcast pseudo-module
@@ -76,7 +78,8 @@ class ModuleInfoTest(BaseTestCase):
             response_obj, dict,
             "modules_list expected to return dictionary")
 
-        for field in ('name', 'sw_version', 'hw_version', 'vendor', 'serial_no'):
+        fields = ('name', 'sw_version', 'hw_version', 'vendor', 'serial_no')
+        for field in fields:
             self.assertTrue(
                 field in response_obj,
                 "Field '{0}' not found in module info".format(field))
@@ -84,11 +87,8 @@ class ModuleInfoTest(BaseTestCase):
 
 class ModuleListTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_module_list') + '?format=json'
+    url_name = 'api_module_list'
+    format = 'json'
 
     def test_modules_list(self):
         response = self.fetch(self.url, headers=self.headers)
@@ -110,11 +110,8 @@ class ModuleListTest(BaseTestCase):
 
 class ListSCPICommandsTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_list_commands') + '?format=json'
+    url_name = 'api_list_commands'
+    format = 'json'
 
     def test_list_scpi_commands(self):
         # test on Broadcast pseudo module
@@ -139,11 +136,8 @@ class ListSCPICommandsTest(BaseTestCase):
 
 class SCPICommandTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_send_scpi') + '?format=json'
+    url_name = 'api_send_scpi'
+    format = 'json'
 
     def test_slot_validation(self):
         # test on Broadcast pseudo module
@@ -215,11 +209,7 @@ class SCPICommandTest(BaseTestCase):
 
 class ModuleUIHandlerTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_widgets')
+    url_name = 'api_widgets'
 
     def test_format_ignored(self):
         # test on Broadcast pseudo module
@@ -272,6 +262,7 @@ class ModuleUIHandlerTest(BaseTestCase):
 
 
 class WebSocketBaseTestCase(tornado.testing.AsyncHTTPTestCase):
+
     @gen.coroutine
     def ws_connect(self, path, compression_options=None):
         ws = yield websocket_connect(
@@ -289,6 +280,7 @@ class WebSocketBaseTestCase(tornado.testing.AsyncHTTPTestCase):
 
 
 class WebSocketTest(WebSocketBaseTestCase):
+
     def get_app(self):
         return app.get_application()
 

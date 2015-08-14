@@ -232,7 +232,7 @@ class SelectModuleHandler(ModuleHandler):
                                   " DELETE request first.".format(used_by)})
             return
         setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
-        global ws
+
         # Send update to all clients via WS
         ws.update_lock(hwconf.modules.index(self.module),
                        getattr(self.module, 'used_by', None))
@@ -247,7 +247,7 @@ class SelectModuleHandler(ModuleHandler):
             return
         setattr(self.module, 'used_by', None)
         # Send update to all clients via WS
-        global ws
+
         ws.update_lock(hwconf.modules.index(self.module),
                        getattr(self.module, 'used_by', None))
         self.finish("OK")

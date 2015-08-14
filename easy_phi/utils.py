@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import json
-import dicttoxml
-from xml.dom.minidom import parseString
 
 import pkgtools.pypi
 
@@ -15,7 +13,7 @@ def format_conversion(chunk, fmt, debug=False):
             chunk = "\n".join((u"{0}: {1}".format(key, chunk[key])
                                for key in sorted(chunk.keys())))
         elif isinstance(chunk, list):
-            chunk = "\n".join(map(unicode, chunk))
+            chunk = "\n".join((unicode(bit) for bit in chunk))
         else:
             chunk = unicode(chunk)
 
@@ -34,8 +32,6 @@ def scpi_equivalent(command, canonical):
     command = command.strip().split(" ", 1)[0]
     canonical = canonical.strip().split(" ", 1)[0]
 
-    # i is index of current char in command, j is index for canonical form
-    i = j = 0
     # TODO: actually implement this method
     # TODO: add support for default command
     while True:
@@ -47,6 +43,13 @@ def scpi_equivalent(command, canonical):
 
 
 def parse_scpi_command(raw_str):
+    """ Parse raw SCPI command to separate command from parameters
+    This function is used in hwal.py to match received command with special
+    system wide commands implemented by broadcast module itself.
+
+    :param raw_str: raw scpi command, e.g. CONF:OUT1 IN2
+    :return: command itself, first paramenter and unparsed string remainder
+    """
     # TODO: add docstring, documentation, unittest
     chunks = raw_str.split(" ", 2)
     cmd = chunks[0]
@@ -60,7 +63,7 @@ def get_latest_pypi_version():
     This function is used by system upgrade function
     """
     from easy_phi import __project__ as proj
-    p = pkgtools.pypi.PyPIXmlRpc()
-    releases = p.package_releases(proj)
-    if releases and len(releases)>0:
+    pypi = pkgtools.pypi.PyPIXmlRpc()
+    releases = pypi.package_releases(proj)
+    if releases and len(releases) > 0:
         return releases[0]

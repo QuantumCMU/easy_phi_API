@@ -71,19 +71,15 @@ def validate_api_token(token):
     :param token: string, api token
     :return boolean, True if api token is associated with authenticated user"""
 
-    global active_tokens
-
     return token in active_tokens
 
 
 def user_by_token(token):
-    global active_tokens
     return active_tokens.get(token)
 
 
 def _token_generator():
-    """Wrapper function to hide real secret value used to generate api_tokens
-    """
+    """Wrapper to real secret value used to generate api_tokens """
     _secret = options.secret
 
     if not _secret:
@@ -147,7 +143,7 @@ def register_token(user, api_token):
 def unregister_token(api_token):
     global active_tokens
     if api_token in active_tokens:
-        del(active_tokens[api_token])
+        del active_tokens[api_token]
 
 
 def admin_auth(user, password):
@@ -336,7 +332,7 @@ class PasswordAuthAPIHandler(tornado.web.RequestHandler):
         if self.request.method in ('POST', 'PUT'):
             # "or ''" is to handle PUT/POST without body
             password = self.request.body or ''
-            if not 5 < len(password) < 31 or not re.search("\d", password) \
+            if not 5 < len(password) < 31 or not re.search(r"\d", password) \
                     or not re.search("[a-zA-Z]", password):
                 self.set_status(400)
                 self.finish('Password is missing or does not match safety '
@@ -370,7 +366,7 @@ class PasswordAuthAPIHandler(tornado.web.RequestHandler):
         """Create new user """
         user = self.get_argument('user', '')
 
-        if len(user) < 4 or not re.match("[a-zA-Z][\w_]{3,19}$", user):
+        if len(user) < 4 or not re.match(r"[a-zA-Z][\w_]{3,19}$", user):
             self.set_status(400)
             self.finish('Username is missing or invalid. User name should '
                         'start with letter, and contain only alphanumeric '
@@ -414,7 +410,9 @@ class PasswordAuthLoginHandler(LoginHandler):
     @tornado.gen.coroutine
     @http_basic(PasswordAuthAPIHandler.check_password)
     def get(self):
-        user, pwd = parse_http_basic_auth(self.request)
+        # at this point we passed @http_basic decorator,
+        # so we know password is correct
+        user = parse_http_basic_auth(self.request)[0]
         self.authenticate(user)
 
 

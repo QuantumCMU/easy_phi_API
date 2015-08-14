@@ -190,7 +190,7 @@ class CDCModule(AbstractMeasurementModule):
         return device.get('ID_USB_DRIVER') == 'cdc_acm' and 'DEVNAME' in device
 
     @tornado.gen.coroutine
-    def scpi(self, command, timeout=options.serial_port_timeout):
+    def scpi(self, command):
         """Send SCPI command to the device
         :param command: string with SCPI command. It is not validated to be
                 valid SCPI command,  it is your responsibility
@@ -290,7 +290,7 @@ class BroadcastModule(AbstractMeasurementModule):
 # it contains list of classes instead of strings.
 # hwconf.py iterates these modules and calls static method is_instance()
 # to see if device is supported by the system
-__all__ = module_classes = [
+module_classes = [
     LegacyEasyPhiModule,
     CDCModule,
     USBTMCModule
