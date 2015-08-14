@@ -4,17 +4,20 @@ CentOS / RHEL
 
 Tested on CentOS 6
 
-    # to get tornado.speedups, you need to install python-devel
+    # to get tornado.speedups, you need to install python-devel (it's optional)
     yum install python-devel
-    # Pip is installed from epel repo. If it is not installed, you can do it
-    # by yum install epel-release
+    # easy_install
+    yum install python-setuptools
+    # Now, there are two options to install pip: using easy_install or repo.
+    # epel repo is not installed by default, you can add it by yum install epel-release
     yum install python-pip
-    # or, by yum install python-setuptools; easy_install pip
-    # you python-pip
-    yum install libudev python-pip
-    # easy_install won't let to install console scritps. Use pip
+    # OR
+    easy_install pip
+    # Install libudev
+    yum install libudev
+    # easy_install won't install console scripts, use pip
     pip install easy_phi
-    # Centos comes with outdated certifi version, need to update
+    # Centos 6 comes with outdated certifi version, need to update
     easy_install --upgrade certifi
     
 

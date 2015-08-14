@@ -18,6 +18,7 @@ var ep = window['ep'] || {
     _empty_slot_str: "Empty slot", // moved out of func for localization purposes
     _broadcast_slot: 0,
     _ws: null, //WebSocket object
+    _console: document.getElementById("console_log"),
 
     init: function(base_url) {
         // TODO: set global ajax error handler
@@ -242,6 +243,7 @@ var ep = window['ep'] || {
 
     log: function(message) {
         // HTML is welcome
-        $("#console_log").append(message+"<br />");
+        $(ep._console).append(message+"<br />");
+        ep._console.scrollTop = ep._console.scrollHeight;
     }
 };

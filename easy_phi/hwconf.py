@@ -13,10 +13,21 @@ from easy_phi import hwal
 
 define('ports', default=[])
 
-callbacks = [
-    # hardware configuration change listener will call these methods.
-    # It is necessary to send updates to websockets
+hwconf_change_callbacks = [
+    # hardware configuration change listener will call these callbacks upon
+    # configuration change. They can be used for example to send websockets
+    # updates
 ]
+
+data_callbacks = []
+
+
+def data_callback(slot):
+    def caller(data):
+        for callback in data_callbacks:
+            if callable(callback):
+                callback(slot, data)
+    return caller
 
 modules = [None]
 # device #0 represents broadcast
@@ -67,7 +78,8 @@ def hwconf_update():
         for module_class in hwal.module_classes:
             if module_class.is_instance(device):
                 slot = get_rack_slot(device)
-                modules[slot] = module_class(device)
+                modules[slot] = module_class(
+                    device, data_callback=data_callback(slot))
                 break
 
 
@@ -87,9 +99,10 @@ def hwconf_listener(action, device):
 
     rack_slot = get_rack_slot(device)
     added = action not in ('remove', 'offline')
-    modules[rack_slot] = module_class(device) if added else None
+    modules[rack_slot] = module_class(
+        device, data_callback=data_callback(rack_slot)) if added else None
 
-    for callback in callbacks:
+    for callback in hwconf_change_callbacks:
         if callable(callback):
             callback(added, rack_slot)
 

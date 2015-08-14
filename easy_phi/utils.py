@@ -9,13 +9,7 @@ import pkgtools.pypi
 
 
 def format_conversion(chunk, fmt, debug=False):
-    if fmt == 'xml':
-        ctype = 'application/xml'
-        chunk = dicttoxml.dicttoxml(chunk)
-        if debug:  # prettify XML for better debugging
-            chunk = parseString(chunk).toprettyxml()
-
-    elif fmt == 'plain':  # Plain text
+    if fmt == 'plain':  # Plain text
         ctype = 'text/plain'
         if isinstance(chunk, dict):
             chunk = "\n".join((u"{0}: {1}".format(key, chunk[key])
