@@ -73,12 +73,17 @@ class HiSLIPCommError(IOError):
     """Exception to indicate communication issues, such as timeout"""
 
 
-class HiSLIPSession(object):
-    id = None
-
-
 class HiSLIPMessage(object):
-
+    """ HiSLIP message format:
+    offset: len (bytes): description
+    0: 2: protocol identificator, ASCII letters "HS"
+    2: 1: message type, as defined by HiSLIPMessageCodes
+    3: 1: control code, message-specific. 0 if not used
+    4: 4: message parameters, message-specific. Sometimes treated as dwords or
+          bytes
+    8: 8: payload length
+    16: <>: payload
+    """
     type = 0  # 1 byte, subset of HiSLIPMessageCodes properties
     control_code = 0
     parameter = 0
@@ -92,27 +97,35 @@ class HiSLIPMessage(object):
 
     @property
     def parameter_lword(self):
+        """ Return lower word of parameter field in message.
+        Parameter field is treated as two dwords by Initialize and
+        InitializeResponse message types. This is just a utility method.
+        """
         return self.parameter & 0xffff
 
     @parameter_lword.setter
     def parameter_lword(self, word):
+        """ Complementary setter for parameter_lword getter"""
         self.parameter = ((self.parameter & 0xffff) ^ self.parameter) | \
                          (word & 0xffff)
 
     @property
     def parameter_uword(self):
+        """ Return upper word of parameter field message """
         return self.parameter >> 16
 
     @parameter_uword.setter
     def parameter_uword(self, word):
+        """ Complementary setter for parameter_uword getter"""
         self.parameter = ((self.parameter & 0xffff0000) ^ self.parameter) | \
                          ((word & 0xffff) << 16)
 
     @staticmethod
     def from_stream(stream):
+        """ Parse message from IOStream
+        :param stream: tornado.iostream.IOStream instance
         """
-        :param connection: tornado.iostream.IOStream
-        """
+        # TODO: use futures. Actually, just copy from parsing HTTP message
         header = stream.read_bytes(16)
 
         # these exceptions should be handled by caller to return corresponding
@@ -145,36 +158,19 @@ class HiSLIPMessage(object):
 # session id if async not established yet
 
 
-
 class HiSLIPServer(tornado.tcpserver.TCPServer):
-
-    sessions = []
+    _connections = {}
 
     def handle_stream(self, stream, address):
         """
-
         :param stream: tornado.iostream.IOStream instance. We need to write
                 response to stream.socket
         :param address: remote address. It is not important for us
         :return: None
         """
 
-        try:
-            # stream.socket is connection after conn, addr = socket.accept()
-            # Stacktrace:
-            # L143@tornado.tcpserver.TCPServer.add_sockets()
-            # L253@tornado.netutil.add_handler()
-            # L266@tornado.tcpserver.TCPServer._handle_connection()
-            # L986@tornado.iostream.IOStream.__init__()
-            message = HiSLIPMessage.from_stream(stream)
-        except HiSLIPBadMessage:  # not a HiSLIP message
-            stream.close()
-            # TODO: respond with error message
-            return
-        except HiSLIPCommError:
-            stream.close()
-            # TODO: log exception
-            return
-
-        if message.type == HiSLIPMessageCodes.Initialize:
-            pass
+        # if it is sync
+        #   create new connection, passing stream in parameters
+        #   add to connection pool
+        #   start serving (actually, wait for async conn)
+        # if it is async, find corresponding sync connection and assign pair

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+""" Unit tests for easy_phi.utils module """
+
 from tornado.test.util import unittest
 
 from easy_phi import utils
@@ -10,22 +12,18 @@ class FormatConversionsTest(unittest.TestCase):
 
     def test_format_conversion_string(self):
         """ Test string format conversion """
-        response_text, ctype = \
-            utils.format_conversion("Hello world", 'plain')
+        response_text = utils.format_conversion("Hello world", 'plain')[0]
         self.assertEqual(u'Hello world', response_text)
 
-        response_text, ctype = \
-            utils.format_conversion("Hello world", 'json')
+        response_text = utils.format_conversion("Hello world", 'json')[0]
         self.assertEqual('"Hello world"', response_text)
 
     def test_format_conversion_list(self):
         """ Test list format conversion """
-        response_text, ctype = \
-            utils.format_conversion(['one', 1, None], 'plain')
+        response_text = utils.format_conversion(['one', 1, None], 'plain')[0]
         self.assertMultiLineEqual(response_text, "one\n1\nNone")
 
-        response_text, ctype = \
-            utils.format_conversion(['one', 1, None], 'json')
+        response_text = utils.format_conversion(['one', 1, None], 'json')[0]
         self.assertEqual('["one", 1, null]', response_text)
 
     def test_format_conversion_dict(self):
