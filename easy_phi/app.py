@@ -22,6 +22,10 @@ from easy_phi import hwconf, auth, utils, scpi2widgets, hislip
 # whenever you change version, please update setup.py as well
 from easy_phi import __version__, __project__
 
+
+WEBSOCKETS = set()
+
+
 # configuration defaults
 define("conf_path", default="/etc/easy_phi.conf")
 define("template_path",
@@ -49,10 +53,6 @@ define("hislip_port", default=4880)
 # Raw sockets SCPI
 define("raw_socket", 'disable')
 define("raw_socket_port", default=5025)
-
-
-# WebSocket object
-ws = None
 
 
 class APIHandler(tornado.web.RequestHandler):
@@ -225,17 +225,20 @@ class SelectModuleHandler(ModuleHandler):
         if used_by == auth.user_by_token(self.api_token):
             self.finish("OK")
             return
+
         if used_by is not None:
             self.set_status(400)
             self.finish({'error': "Module is used by {0}. If you need this "
                                   "module, you might force unlock it by issuing"
                                   " DELETE request first.".format(used_by)})
             return
-        setattr(self.module, 'used_by', auth.user_by_token(self.api_token))
+        used_by = auth.user_by_token(self.api_token)
+        setattr(self.module, 'used_by', used_by)
 
         # Send update to all clients via WS
-        ws.update_lock(hwconf.modules.index(self.module),
-                       getattr(self.module, 'used_by', None))
+        for websocket in WEBSOCKETS:
+            websocket.update_lock(self.slot, used_by)
+
         self.finish("OK")
 
     def delete(self):
@@ -246,10 +249,10 @@ class SelectModuleHandler(ModuleHandler):
             self.finish({'error': 'Module is not used by anyone at the moment'})
             return
         setattr(self.module, 'used_by', None)
-        # Send update to all clients via WS
 
-        ws.update_lock(hwconf.modules.index(self.module),
-                       getattr(self.module, 'used_by', None))
+        for websocket in WEBSOCKETS:
+            websocket.update_lock(self.slot, None)
+
         self.finish("OK")
 
     def get(self):
@@ -342,24 +345,20 @@ class ModuleUIHandler(ModuleHandler):
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     """API function that opens/closes WebSocket connection and
     provides interface to send data through the WebSocket"""
-    allow_broadcast = False
 
-    def update_module(self, added, slot):
-        """Send update to clients indicating that module has been added or
-        removed
-        """
+    def update_module(self, slot, added):
+        """Send hardware configuration update to the client. It means module
+        has been added or removed """
         message = {
             'msg_type': 'MODULE_UPDATE',
             'slot': slot,
-            'module_name': getattr(hwconf.modules[slot], 'name', None),
+            'module_name': hwconf.modules[slot].name,
             'added': added
         }
         self.write_message(message)
 
     def update_lock(self, slot, used_by):
-        """Send update to clients indicating that module has been locked or
-        unlocked
-        """
+        """Send lock status update to the client"""
         message = {
             'msg_type': 'LOCK_UPDATE',
             'slot': slot,
@@ -378,23 +377,29 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
         """Open WebSocket connection"""
-        global ws
-        ws = self
-        # add update_module function as a callback to hwconf module
-        hwconf.hwconf_change_callbacks.append(self.update_module)
-        hwconf.data_callbacks.append(self.send_data)
+        WEBSOCKETS.add(self)
 
-    def close(self, **kwargs):
+    def on_close(self, **kwargs):
         """Close WebSocket connection"""
-        # remove update_module function as a callback to hwconf module
-        hwconf.hwconf_change_callbacks.remove(self.update_module)
-        hwconf.data_callbacks.remove(self.send_data)
+        WEBSOCKETS.remove(self)
 
     def on_message(self, message):
-        """This method is for testing purposes and simply echoes received
-        messages
-        """
+        """Echo received messages for test purpose """
         self.write_message('Echo:' + message)
+
+    def check_origin(self, origin):
+        """Override to allow requests from other hosts"""
+        return True
+
+
+def hwconf_callback(slot, added):
+    for websocket in WEBSOCKETS:
+        websocket.update_module(slot, added)
+
+
+def data_callback(slot, data):
+    for websocket in WEBSOCKETS:
+        websocket.send_data(slot, data)
 
 
 class BaseWebHandler(tornado.web.RequestHandler):
@@ -561,6 +566,7 @@ def get_application():
 
 
 def main():
+
     if __name__ == '__main__':
         # parse command line twice to allow pass configuration file path
         parse_command_line(final=False)
@@ -582,6 +588,8 @@ def main():
     if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
         auth.register_token(options.security_dummy_username, '')
 
+    hwconf.hwconf_change_callbacks.append(hwconf_callback)
+    hwconf.data_callbacks.append(data_callback)
     # it should start after options already parsed, as hwconf depends on certain
     # options like ports configurations, timeouts etc
     hwconf.start()
