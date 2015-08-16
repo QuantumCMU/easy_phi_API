@@ -17,7 +17,7 @@ class PerformanceTest(tornado.testing.AsyncHTTPTestCase):
         modules = self.fetch('/api/v1/modules_list?format=plain')
         self.failIf(modules.error)
 
-        if len([m for m in modules.body.split("\n") if m != "None"])>1:
+        if len([m for m in modules.body.split("\n") if m != "None"]) > 1:
             # there is some equipment connected
             self.assertTrue(False,
                             "\n" + "="*70+"\n"+

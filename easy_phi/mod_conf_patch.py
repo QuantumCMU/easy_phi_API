@@ -76,7 +76,6 @@ def get_configuration_patch(device):
     :param device:
     :return: list of supported commands
     """
-    global legacy_configs, legacy_commands
     if legacy_configs is None:
         _init_config()
 

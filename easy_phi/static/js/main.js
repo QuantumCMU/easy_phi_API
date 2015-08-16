@@ -205,6 +205,9 @@ var ep = window['ep'] || {
         }
         else {
             ep._markUsedBy(slot_id, used_by);
+            if (used_by != ep._username) { // close module UI
+                $("#module_header_"+slot_id).toggleClass("open", false);
+            }
         }
     },
 

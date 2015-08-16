@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+""" Implementation of classes representing different classes of equipment
+This module also contains implementation of system-wide commands supported
+by broadcast module. These are special SCPI commands returning platform-levevl
+information about the system, such as number of available slots.
+"""
+
 import serial
 import datetime
 
@@ -82,6 +88,18 @@ class SerialStream(tornado.iostream.BaseIOStream):
         self._data_callback = data_callback
 
     def start(self, delimiter="\r"):
+        """This class represents data communication with serial device.
+        Major problem we have is there is no indication for end of transmission
+        in serial communication. Command that takes too long to process, failed
+        or disconnected equipment on serial port, or command that does not
+        produce any output look the same for us. To overcome this, we listen for
+        all the data coming from port. If we have a pending command waiting for
+        data, we assume it is a response and return it. If we get data without
+        command, it might indicate one of the situations:
+            - previous command timed out and we already returned empty string
+            - previous command generates constant stream of data
+            -
+        """
         self._read_delimiter = delimiter
         self.read_until_close(streaming_callback=self._handle_chunk)
 
@@ -190,7 +208,7 @@ class CDCModule(AbstractMeasurementModule):
         return device.get('ID_USB_DRIVER') == 'cdc_acm' and 'DEVNAME' in device
 
     @tornado.gen.coroutine
-    def scpi(self, command, timeout=options.serial_port_timeout):
+    def scpi(self, command):
         """Send SCPI command to the device
         :param command: string with SCPI command. It is not validated to be
                 valid SCPI command,  it is your responsibility
@@ -242,7 +260,9 @@ class USBTMCModule(AbstractMeasurementModule):
 
 
 class BroadcastModule(AbstractMeasurementModule):
-    """ Fake module to broadcast messages to all modules connected to platform.
+    """ Fake module to broadcast messages to all connected equipment.
+    This module also implements few special system wide commands, returning
+    platform level configuration
     """
 
     name = "Broadcast dummy module"
@@ -282,15 +302,18 @@ class BroadcastModule(AbstractMeasurementModule):
         return response
 
     def get_configuration(self):
+        """ Return list of supported commands
+        """
         conf = super(BroadcastModule, self).get_configuration()
-        conf += [command for command, callback in self.platformwide_commands()]
+        conf += [cmd[0] for cmd in self.platformwide_commands()
+                 if cmd[0] not in conf]
         return conf
 
 # Please note that it is not conventional __all__ defined in __init__.py,
 # it contains list of classes instead of strings.
 # hwconf.py iterates these modules and calls static method is_instance()
 # to see if device is supported by the system
-__all__ = module_classes = [
+module_classes = [
     LegacyEasyPhiModule,
     CDCModule,
     USBTMCModule

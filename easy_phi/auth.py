@@ -55,7 +55,7 @@ define('security_google_oauth_secret', '')
 
 # map of api_tokens to authenticated users
 # i.e. active_tokens[hash_value] = username
-active_tokens = {}
+ACTIVE_TOKENS = {}
 
 
 def validate_api_token(token):
@@ -71,34 +71,31 @@ def validate_api_token(token):
     :param token: string, api token
     :return boolean, True if api token is associated with authenticated user"""
 
-    global active_tokens
-
-    return token in active_tokens
+    return token in ACTIVE_TOKENS
 
 
 def user_by_token(token):
-    global active_tokens
-    return active_tokens.get(token)
+    return ACTIVE_TOKENS.get(token)
 
 
 def _token_generator():
-    """Wrapper function to hide real secret value used to generate api_tokens
-    """
+    """Wrapper to real secret value used to generate api_tokens """
     _secret = options.secret
 
     if not _secret:
-        m = hashlib.md5()
-        m.update(uuid.getnode().__hex__())  # MAC address
+        msg_digest = hashlib.md5()
+        msg_digest.update(uuid.getnode().__hex__())  # MAC address
         try:
-            fh = open('/etc/fstab', 'r')
-            fstab = fh.read(4096)
-            fh.close()
+            fhandle = open('/etc/fstab', 'r')
+            fstab = fhandle.read(4096)
+            fhandle.close()
         except IOError:
             fstab = uuid.uuid1(clock_seq=0).hex
 
-        m.update("\n".join(  # use only non-empty, non-comment lines
-            filter(lambda x: x,
-                 (l.split("#", 1)[0].strip() for l in fstab.split('\n')))))
+        msg_digest.update("\n".join(  # use only non-empty, non-comment lines
+            (x for x in
+                (l.split("#", 1)[0].strip() for l in fstab.split('\n'))
+                if x)))
 
         try:
             # subprocess.check_output() is not available prior to Python 2.7
@@ -107,9 +104,9 @@ def _token_generator():
         except OSError:
             # 4 chosen by a fair dice roll. Guaranteed to be random :)
             hostid = uuid.uuid1(clock_seq=4).hex
-        m.update(hostid)
+        msg_digest.update(hostid)
 
-        _secret = m.hexdigest()
+        _secret = msg_digest.hexdigest()
 
     def _generate_token(username):
         """Generate unique and unpredictable token from username and intrinsic
@@ -120,11 +117,11 @@ def _token_generator():
         be more secure but won't work on read-only filesystems
         """
 
-        m = hashlib.md5()
-        m.update(str(username))
-        m.update(_secret)
+        msg_digest = hashlib.md5()
+        msg_digest.update(str(username))
+        msg_digest.update(_secret)
         # return only hex part
-        return m.hexdigest()[:options.session_cookie_length]
+        return msg_digest.hexdigest()[:options.session_cookie_length]
 
     return _generate_token
 
@@ -140,14 +137,15 @@ def register_token(user, api_token):
     :param api_token: token, consistent hash from auth backend
     :return: None
     """
-    global active_tokens
-    active_tokens[api_token] = user
+    ACTIVE_TOKENS[api_token] = user
 
 
 def unregister_token(api_token):
-    global active_tokens
-    if api_token in active_tokens:
-        del(active_tokens[api_token])
+    """ Removes user token from authenticated list.
+    Basically, a logout function.
+    """
+    if api_token in ACTIVE_TOKENS:
+        del ACTIVE_TOKENS[api_token]
 
 
 def admin_auth(user, password):
@@ -180,6 +178,7 @@ def http_basic(auth_func):
     """
 
     def decorator(method):
+        """Well, here we just save an auth function (method)"""
         @functools.wraps(method)
         def wrapper(self, *args, **kwargs):
             user, pwd = parse_http_basic_auth(self.request)
@@ -206,7 +205,10 @@ class LogoutHandler(tornado.web.RequestHandler):
 
 
 class LoginHandler(tornado.web.RequestHandler, tornado.util.Configurable):
-    """ Special class to support configurable security backend """
+    """ Special class to support configurable security backend.
+     Form more details, please read
+     http://tornado.readthedocs.org/en/latest/util.html#tornado.util.Configurable
+     """
 
     @classmethod
     def configurable_base(cls):
@@ -279,6 +281,8 @@ _user_cache = None
 
 
 class PasswordAuthAPIHandler(tornado.web.RequestHandler):
+    """ REST API handler for admin interface to manage users and passwords """
+
     user = None
     password = None
 
@@ -336,7 +340,7 @@ class PasswordAuthAPIHandler(tornado.web.RequestHandler):
         if self.request.method in ('POST', 'PUT'):
             # "or ''" is to handle PUT/POST without body
             password = self.request.body or ''
-            if not 5 < len(password) < 31 or not re.search("\d", password) \
+            if not 5 < len(password) < 31 or not re.search(r"\d", password) \
                     or not re.search("[a-zA-Z]", password):
                 self.set_status(400)
                 self.finish('Password is missing or does not match safety '
@@ -370,7 +374,7 @@ class PasswordAuthAPIHandler(tornado.web.RequestHandler):
         """Create new user """
         user = self.get_argument('user', '')
 
-        if len(user) < 4 or not re.match("[a-zA-Z][\w_]{3,19}$", user):
+        if len(user) < 4 or not re.match(r"[a-zA-Z][\w_]{3,19}$", user):
             self.set_status(400)
             self.finish('Username is missing or invalid. User name should '
                         'start with letter, and contain only alphanumeric '
@@ -409,12 +413,20 @@ class PasswordAuthAPIHandler(tornado.web.RequestHandler):
 
 
 class PasswordAuthLoginHandler(LoginHandler):
-    """ HTTP Basic auth security backend - request username and password """
+    """ Password auth security backend
+    User logins stored in plaintext file. Passwords are stored in system keyring
+    (remember, we're using Linux). Login prompt is done with HTTP Basic auth
+
+    If you would like to have a nice login page, just override get to render
+    template and add POST to validate credentials.
+    """
 
     @tornado.gen.coroutine
     @http_basic(PasswordAuthAPIHandler.check_password)
     def get(self):
-        user, pwd = parse_http_basic_auth(self.request)
+        # at this point we passed @http_basic decorator,
+        # so we know password is correct
+        user = parse_http_basic_auth(self.request)[0]
         self.authenticate(user)
 
 
