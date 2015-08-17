@@ -48,10 +48,7 @@ def data_callback(slot):
         """ Wrapper for callback function for received data. """
         for callback in data_callbacks:
             if callable(callback):
-                try:
-                    callback(slot, data)
-                except:
-                    continue
+                callback(slot, data)
     return caller
 
 modules = [None]
@@ -126,10 +123,7 @@ def hwconf_listener(action, device):
 
     for callback in hwconf_change_callbacks:
         if callable(callback):
-            try:
-                callback(rack_slot, added)
-            except:
-                continue
+            callback(rack_slot, added)
 
 # for asynchronous hw configuration monitoring reference see
 # https://pyudev.readthedocs.org/en/latest/guide.html#asynchronous-monitoring

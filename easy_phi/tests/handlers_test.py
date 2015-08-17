@@ -7,18 +7,16 @@ import json
 import tornado.testing
 from tornado.options import options
 import tornado.websocket
-from tornado.websocket import websocket_connect
 from tornado import gen
 
 from easy_phi import app
 
 
 class BaseTestCase(tornado.testing.AsyncHTTPTestCase):
-    """ common setup procedure for all API calls, e.g. creating api token
-    """
+    """ common setup procedure for all API calls, e.g. creating api token """
     headers = None
     url = None
-    format = None
+    format = 'json'
     url_name = ''
 
     def setUp(self):
@@ -41,15 +39,21 @@ class PlatformInfoTest(BaseTestCase):
 
     def test_response(self):
         """ Test if platform info method output makes sense """
-        response = self.fetch(self.url+'?format=json', headers=self.headers)
-
+        response = self.fetch(self.url, headers=self.headers)
         self.failIf(response.error)
+
         response_obj = json.loads(response.body)
 
         for field in ('slots', 'sw_version', 'hw_version', 'vendor'):
             self.assertTrue(
                 field in response_obj,
                 "Field '{0}' not found in platform info".format(field))
+
+
+class ContentTypeTest(BaseTestCase):
+
+    url_name = 'api_platform_info'
+    format = None
 
     def test_content_type(self):
         """ Test if API returns correct Content-Type for different formats.
@@ -70,7 +74,6 @@ class PlatformInfoTest(BaseTestCase):
 class ModuleInfoTest(BaseTestCase):
 
     url_name = 'api_module_info'
-    format = 'json'
 
     def test_module_info(self):
         """ Test module info API call output contains correct fields"""
@@ -95,7 +98,6 @@ class ModuleInfoTest(BaseTestCase):
 class ModuleListTest(BaseTestCase):
 
     url_name = 'api_module_list'
-    format = 'json'
 
     def test_modules_list(self):
         """ Test module list API call actually produces a list"""
@@ -119,7 +121,6 @@ class ModuleListTest(BaseTestCase):
 class ListSCPICommandsTest(BaseTestCase):
 
     url_name = 'api_list_commands'
-    format = 'json'
 
     def test_list_scpi_commands(self):
         """ Test list supported SCPI commands API call """
@@ -147,7 +148,6 @@ class SCPICommandTest(BaseTestCase):
     """ Test sending SCPI commands to a module """
 
     url_name = 'api_send_scpi'
-    format = 'json'
 
     def test_slot_validation(self):
         """ Check slot parameter is properly validated """
@@ -227,6 +227,7 @@ class SCPICommandTest(BaseTestCase):
 class ModuleUIHandlerTest(BaseTestCase):
 
     url_name = 'api_widgets'
+    format = None
 
     def test_format_ignored(self):
         # test on Broadcast pseudo module
@@ -282,7 +283,7 @@ class WebSocketBaseTestCase(tornado.testing.AsyncHTTPTestCase):
 
     @gen.coroutine
     def ws_connect(self, path, compression_options=None):
-        ws = yield websocket_connect(
+        ws = yield tornado.websocket.websocket_connect(
             'ws://127.0.0.1:%d%s' % (self.get_http_port(), path),
             compression_options=compression_options)
         raise gen.Return(ws)

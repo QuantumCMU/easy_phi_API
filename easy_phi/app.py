@@ -13,6 +13,7 @@ import tornado.httpserver
 import tornado.web
 import tornado.websocket
 import tornado.gen
+import tornado.log
 
 from tornado.options import options, define
 from tornado.options import parse_config_file, parse_command_line
@@ -347,12 +348,15 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
     provides interface to send data through the WebSocket"""
 
     def update_module(self, slot, added):
-        """Send hardware configuration update to the client. It means module
-        has been added or removed """
+        """Send hardware configuration update to the client.
+        It means module has been added or removed
+        :param  slot: int, slot number where configuration change occurred
+                added: boolean, True if module was added, False if removed
+        """
         message = {
             'msg_type': 'MODULE_UPDATE',
             'slot': slot,
-            'module_name': hwconf.modules[slot].name,
+            'module_name': added and hwconf.modules[slot].name,
             'added': added
         }
         self.write_message(message)
@@ -393,11 +397,13 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
 
 def hwconf_callback(slot, added):
+    """ Send update to all websockets on hardware configuration change """
     for websocket in WEBSOCKETS:
         websocket.update_module(slot, added)
 
 
 def data_callback(slot, data):
+    """ Send update to all websockets on data received from some equipment """
     for websocket in WEBSOCKETS:
         websocket.send_data(slot, data)
 
@@ -562,6 +568,13 @@ def get_application():
                 'passwords'),
         ])
 
+    # even if default security backend is dummy, user still has to visit auth
+    # page before api requests will be accepted. Here is a workaround for that
+    # This is only to enable api calls with dummy backend without opening web
+    # interface, index page will perform authorization
+    if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
+        auth.register_token(options.security_dummy_username, '')
+
     return application
 
 
@@ -580,13 +593,6 @@ def main():
             pass
 
     application = get_application()
-
-    # even if default security backend is dummy, user still has to visit auth
-    # page before api requests will be accepted. Here is a workaround for that
-    # This is only to enable api calls with dummy backend without opening web
-    # interface, index page will perform authorization
-    if options.security_backend == 'easy_phi.auth.DummyLoginHandler':
-        auth.register_token(options.security_dummy_username, '')
 
     hwconf.hwconf_change_callbacks.append(hwconf_callback)
     hwconf.data_callbacks.append(data_callback)
