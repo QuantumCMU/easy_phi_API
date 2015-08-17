@@ -9,6 +9,7 @@ TEST_MODULES = [
     'easy_phi.tests.mod_conf_patch_test',
     'easy_phi.tests.scpi2widgets_test',
     'easy_phi.tests.utils_test',
+    'easy_phi.tests.hislip_test',
 ]
 
 

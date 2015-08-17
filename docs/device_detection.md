@@ -101,6 +101,25 @@ udevadm info --name=/dev/ttyACM1 --query=all
     E: SUBSYSTEM=tty
     E: USEC_INITIALIZED=953101815
 
+Note that under Ubuntu devices with `ID_MM_CANDIDATE=1` will not work. Because 
+of this, we add custom udev rule, which is installed to `/etc/udev/rules.d/`
+
+If your platform does not detect a device, you can check this property by running
+
+    udevadm info --name=/dev/ttyACM0 --query=all | grep ID_MM_CANDIDATE
+
+If output is `E: ID_MM_CANDIDATE=1`, you need to check if udev rule is in place:
+
+    `ls -l /etc/udev/rules.d/99-easy_phi-modules.rules`
+
+If it is not there, copy it manually from repo or reinstall the package. Then, 
+disconnect device, restart udev and reconnect device:
+
+    `sudo service udev restart`
+
+Note that if you make a symlink instead of copying rule file, your source file
+should not be writable (do `chmod 444 scripts/99-easy_phi-modules.rules`)
+
 pyudev.Device dict:
 
      {u'DEVLINKS': u'/dev/serial/by-id/usb-Easy-phi_Template_Board_123123123123-if00 /dev/serial/by-path/pci-0000:00:14.0-usb-0:2:1.0',

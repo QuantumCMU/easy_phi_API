@@ -1,40 +1,47 @@
 # -*- coding: utf-8 -*-
+
+""" Unit tests for Tornado web app handlers of Easy Phi platform """
+
 import json
 
 import tornado.testing
 from tornado.options import options
 import tornado.websocket
-from tornado.websocket import websocket_connect
 from tornado import gen
 
 from easy_phi import app
 
 
 class BaseTestCase(tornado.testing.AsyncHTTPTestCase):
-    """ common setup procedure for all API calls, e.g. creating api token
-    """
+    """ common setup procedure for all API calls, e.g. creating api token """
     headers = None
+    url = None
+    format = 'json'
+    url_name = ''
+
+    def setUp(self):
+        super(BaseTestCase, self).setUp()
+        self.url = self._app.reverse_url(self.url_name)
+        if self.format is not None:
+            self.url += '?format=' + self.format
 
     def get_app(self):
         options.security_backend = 'easy_phi.auth.DummyLoginHandler'
         # just and example how to set cookie:
         # self.headers = {"Cookie": '='.join((options.session_cookie_name,
         #                                    api_token))}
-        return app.application
+        return app.get_application()
 
 
 class PlatformInfoTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_platform_info')
+    url_name = 'api_platform_info'
 
     def test_response(self):
-        response = self.fetch(self.url+'?format=json', headers=self.headers)
-
+        """ Test if platform info method output makes sense """
+        response = self.fetch(self.url, headers=self.headers)
         self.failIf(response.error)
+
         response_obj = json.loads(response.body)
 
         for field in ('slots', 'sw_version', 'hw_version', 'vendor'):
@@ -42,18 +49,20 @@ class PlatformInfoTest(BaseTestCase):
                 field in response_obj,
                 "Field '{0}' not found in platform info".format(field))
 
+
+class ContentTypeTest(BaseTestCase):
+
+    url_name = 'api_platform_info'
+    format = None
+
     def test_content_type(self):
+        """ Test if API returns correct Content-Type for different formats.
+        This test is not related to platform info, but has similar setup """
         response = self.fetch(self.url+'?format=json', headers=self.headers)
         self.assertTrue(
             response.headers.get('Content-Type', '').startswith(
                 'application/json'),
             "Wrong response content type for 'format=json'")
-
-        response = self.fetch(self.url+'?format=xml', headers=self.headers)
-        self.assertTrue(
-            response.headers.get('Content-Type', '').startswith(
-                'application/xml'),
-            "Wrong response content type for 'format=xml'")
 
         response = self.fetch(self.url+'?format=plain', headers=self.headers)
         self.assertTrue(
@@ -64,13 +73,10 @@ class PlatformInfoTest(BaseTestCase):
 
 class ModuleInfoTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_module_info') + '?format=json'
+    url_name = 'api_module_info'
 
     def test_module_info(self):
+        """ Test module info API call output contains correct fields"""
         # testing on Broadcast pseudo-module
         # TODO: use pseudo device to check interaction with pyudev.Device
         response = self.fetch(self.url+'&slot=0', headers=self.headers)
@@ -82,7 +88,8 @@ class ModuleInfoTest(BaseTestCase):
             response_obj, dict,
             "modules_list expected to return dictionary")
 
-        for field in ('name', 'sw_version', 'hw_version', 'vendor', 'serial_no'):
+        fields = ('name', 'sw_version', 'hw_version', 'vendor', 'serial_no')
+        for field in fields:
             self.assertTrue(
                 field in response_obj,
                 "Field '{0}' not found in module info".format(field))
@@ -90,13 +97,10 @@ class ModuleInfoTest(BaseTestCase):
 
 class ModuleListTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_module_list') + '?format=json'
+    url_name = 'api_module_list'
 
     def test_modules_list(self):
+        """ Test module list API call actually produces a list"""
         response = self.fetch(self.url, headers=self.headers)
 
         self.failIf(response.error)
@@ -116,13 +120,10 @@ class ModuleListTest(BaseTestCase):
 
 class ListSCPICommandsTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_list_commands') + '?format=json'
+    url_name = 'api_list_commands'
 
     def test_list_scpi_commands(self):
+        """ Test list supported SCPI commands API call """
         # test on Broadcast pseudo module
         response = self.fetch(self.url+'&slot=0',
                               headers=self.headers)
@@ -144,14 +145,12 @@ class ListSCPICommandsTest(BaseTestCase):
 
 
 class SCPICommandTest(BaseTestCase):
+    """ Test sending SCPI commands to a module """
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_send_scpi') + '?format=json'
+    url_name = 'api_send_scpi'
 
     def test_slot_validation(self):
+        """ Check slot parameter is properly validated """
         # test on Broadcast pseudo module
         response = self.fetch(self.url, method='POST', body='*IDN?',
                               headers=self.headers)
@@ -176,6 +175,11 @@ class SCPICommandTest(BaseTestCase):
             "did not cause error response")
 
     def test_systemwide_scpi_command(self):
+        """ Check system-wide command works
+        System wide commands are special SCPI commands handled by broadcast
+        module. Usually they represent some platform-level functions, e.g.
+        return platform configuration
+        """
         response = self.fetch(self.url+'&slot=0', method='POST',
                               body='RAck:Size?', headers=self.headers)
 
@@ -201,6 +205,7 @@ class SCPICommandTest(BaseTestCase):
             "Systemwide SCPI command SYSTem:VERSion? returned non-string")
 
     def test_attempt_real_scpi_command(self):
+        """ Test real SCPI command if module is available """
         response = self.fetch(
             self._app.reverse_url('api_module_list')+'?format=json',
             headers=self.headers)
@@ -212,19 +217,17 @@ class SCPICommandTest(BaseTestCase):
                 response = self.fetch(
                     self.url+'&slot={0}'.format(slot+1),
                     method='POST', body='*IDN?')
-                response_obj = json.loads(response)
+                response_obj = json.loads(response.body)
                 self.assertIsInstance(
                     response_obj, basestring,
-                    "Module SCPI command expected to return string")
+                    "Module SCPI command expected to return string, received: "
+                    "{0}".format(response.body))
 
 
 class ModuleUIHandlerTest(BaseTestCase):
 
-    url = None
-
-    def setUp(self):
-        super(BaseTestCase, self).setUp()
-        self.url = self._app.reverse_url('api_widgets')
+    url_name = 'api_widgets'
+    format = None
 
     def test_format_ignored(self):
         # test on Broadcast pseudo module
@@ -277,9 +280,10 @@ class ModuleUIHandlerTest(BaseTestCase):
 
 
 class WebSocketBaseTestCase(tornado.testing.AsyncHTTPTestCase):
+
     @gen.coroutine
     def ws_connect(self, path, compression_options=None):
-        ws = yield websocket_connect(
+        ws = yield tornado.websocket.websocket_connect(
             'ws://127.0.0.1:%d%s' % (self.get_http_port(), path),
             compression_options=compression_options)
         raise gen.Return(ws)
@@ -294,8 +298,9 @@ class WebSocketBaseTestCase(tornado.testing.AsyncHTTPTestCase):
 
 
 class WebSocketTest(WebSocketBaseTestCase):
+
     def get_app(self):
-        return app.application
+        return app.get_application()
 
     @tornado.testing.gen_test
     def test_websocket_gen(self):

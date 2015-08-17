@@ -2,30 +2,27 @@
 
 import timeit
 
-import tornado.testing
-
-from easy_phi import app
+from handlers_test import BaseTestCase
 
 
-class PerformanceTest(tornado.testing.AsyncHTTPTestCase):
+class PerformanceTest(BaseTestCase):
 
-    def get_app(self):
-        return app.application
+    url_name = 'api_module_list'
+    format = 'plain'
 
     def test_timing_send_scpi(self):
-        # format=plain here is just to get rid of json parsing
-        modules = self.fetch('/api/v1/modules_list?format=plain')
-        self.failIf(modules.error)
+        modules = self.fetch(self.url, headers=self.headers)
+        self.failIf(modules.error, modules)
 
-        if len([m for m in modules.body.split("\n") if m != "None"])>1:
+        if len([m for m in modules.body.split("\n") if m != "None"]) > 1:
             # there is some equipment connected
             self.assertTrue(False,
-                            "\n" + "="*70+"\n"+
+                            "\n" + "="*70+"\n" +
                             "Performance test shall be executed without any "
                             "equipment connected.\nOtherwise, it iwll test"
                             "performance of your equipment, not system's one.\n"
                             "Please disconnect all modules from the system and "
-                            "run test again.\n"+ "="*70)
+                            "run test again.\n" + "="*70)
 
         # test if it passes one time
         response = self.fetch('/api/v1/send_scpi?format=plain&slot=0',

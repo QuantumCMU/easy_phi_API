@@ -18,6 +18,7 @@ var ep = window['ep'] || {
     _empty_slot_str: "Empty slot", // moved out of func for localization purposes
     _broadcast_slot: 0,
     _ws: null, //WebSocket object
+    _console: document.getElementById("console_log"),
 
     init: function(base_url) {
         // TODO: set global ajax error handler
@@ -32,7 +33,9 @@ var ep = window['ep'] || {
                 ) ? (result[1]) : null;
         };
 
-        ep._ws = new WebSocket("ws://" + window.location.host + "/websocket");
+        ep._ws = new WebSocket(
+                (location.protocol == "https:" ? "wss://" : "ws://") +
+                window.location.host + "/websocket");
 
         //get Platform info
         $.get(ep.base_url + "/api/v1/info?format=json", function(platform_info){
@@ -202,6 +205,9 @@ var ep = window['ep'] || {
         }
         else {
             ep._markUsedBy(slot_id, used_by);
+            if (used_by != ep._username) { // close module UI
+                $("#module_header_"+slot_id).toggleClass("open", false);
+            }
         }
     },
 
@@ -240,6 +246,7 @@ var ep = window['ep'] || {
 
     log: function(message) {
         // HTML is welcome
-        $("#console_log").append(message+"<br />");
+        $(ep._console).append(message+"<br />");
+        ep._console.scrollTop = ep._console.scrollHeight;
     }
 };

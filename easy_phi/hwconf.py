@@ -13,10 +13,43 @@ from easy_phi import hwal
 
 define('ports', default=[])
 
-callbacks = [
-    # hardware configuration change listener will call these methods.
-    # It is necessary to send updates to websockets
+hwconf_change_callbacks = [
+    # hardware configuration change listener will call these callbacks upon
+    # configuration change. They can be used for example to send websockets
+    # updates
 ]
+
+data_callbacks = []
+
+
+def data_callback(slot):
+    """
+    We support three types of devices: USB-TMC, USB-CDC and composit. For the
+    latter two, we essentially communicate via serial port. Unlike USB-TMC
+    protocol, where we have special bit in message headers to indicate end of
+    transmission, CDC interface just either writes data or not. There is no way
+    to distinguish long-running command from command that does not return any
+    parameters.
+    It is even more complex as there are generating commands, so for example you
+    can issue command and module will put some value to serial port every two
+    seconds.
+    To deal with data returned after timeout and generating commands, we call
+    these callbacks to notify other components that some data received when we
+    did not specifically ask for that. In current implementation, we simply send
+    this data in websockets message; client who works with moudule should be
+    aware of the command nature and if it will return something after timeout or
+    first newline.
+    Now, getting back to this wrapper. Module handler is not aware about slot it
+    is inserted into. this wrapper just serves as a proxy between module data
+    stream and real callback, addind slot number.
+    :param slot: slot of the module
+    """
+    def caller(data):
+        """ Wrapper for callback function for received data. """
+        for callback in data_callbacks:
+            if callable(callback):
+                callback(slot, data)
+    return caller
 
 modules = [None]
 # device #0 represents broadcast
@@ -50,12 +83,9 @@ def get_rack_slot(device):
     # slot, assign to first free slot. It might happen in standalone mode, or
     # if a supported device connected directly to a board inside rack, i.e.
     # it is not not a typical scenario for commercially distributed systems.
-    for i in range(len(options.ports) + 1, len(modules)):
-        if modules[i] is None:
-            return i
-    slot = len(modules)
     modules += [None]
-    return slot
+    options.ports.append(device['ID_PATH'])
+    return len(modules)
 
 
 def hwconf_update():
@@ -67,7 +97,8 @@ def hwconf_update():
         for module_class in hwal.module_classes:
             if module_class.is_instance(device):
                 slot = get_rack_slot(device)
-                modules[slot] = module_class(device)
+                modules[slot] = module_class(
+                    device, data_callback=data_callback(slot))
                 break
 
 
@@ -78,32 +109,36 @@ def hwconf_listener(action, device):
     """
 
     module_class = None
-    for mc in hwal.module_classes:
-        if mc.is_instance(device):
-            module_class = mc
+    for supported_class in hwal.module_classes:
+        if supported_class.is_instance(device):
+            module_class = supported_class
             break
     if module_class is None:
         return
 
     rack_slot = get_rack_slot(device)
     added = action not in ('remove', 'offline')
-    modules[rack_slot] = module_class(device) if added else None
+    modules[rack_slot] = module_class(
+        device, data_callback=data_callback(rack_slot)) if added else None
 
-    for callback in callbacks:
+    for callback in hwconf_change_callbacks:
         if callable(callback):
-            callback(added, rack_slot)
+            callback(rack_slot, added)
 
 # for asynchronous hw configuration monitoring reference see
 # https://pyudev.readthedocs.org/en/latest/guide.html#asynchronous-monitoring
-monitor = pyudev.Monitor.from_netlink(_context)
-# observer is a subclass of threading.Thread
-observer = pyudev.MonitorObserver(monitor, hwconf_listener)
+# Note: observer is a subclass of threading.Thread
+observer = pyudev.MonitorObserver(
+    pyudev.Monitor.from_netlink(_context), hwconf_listener)
 
 
 def start():
     """ update hardware configuration on start and install udev listener """
+    # We initialize modules with observer start because configuration is not
+    # parsed yet when module is being imported, so we don't know ports number.
     global modules
     modules += [None] * len(options.ports)
+
     if not observer.is_alive():  # start() called twice before stop()
         observer.start()
     hwconf_update()

@@ -12,7 +12,7 @@ long_description = "Software for test measurement equipment platform."
 setup(
     name="easy_phi",
     packages=['easy_phi', 'scripts'],
-    version="0.3",
+    version="0.4",
     license="GPL v3.0",
     description='Easy Phi project web application',
     long_description=long_description,
@@ -59,7 +59,8 @@ setup(
         'dicttoxml',
         'pkgtools',
         'pip',
-        'keyring'
+        'keyring',
+        'futures',  # Python 2 only
     ],
     # TODO: add unit tests
 )
